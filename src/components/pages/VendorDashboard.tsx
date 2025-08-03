@@ -5,6 +5,7 @@
  * - Added stock status filters (Low Stock, Out of Stock, In Stock)
  * - Added price range filters
  * - Added category filters
+ * - Added separate processing modals for each CRUD operation
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -28,7 +29,9 @@ import { Product } from '../product/IProductTypes';
 import ProductDetail from '../product/ProductDetail';
 import ProductForm from '../product/ProductForm';
 import DeleteConfirmationModal from '../ReUsebleComponents/DeleteConfirmationModal';
-import ProductProcessingModal from '../ReUsebleComponents/ProductProcessingModal';
+import CreateProductProcessingModal from '../ReUsebleComponents/CreateProductProcessingModal';
+import UpdateProductProcessingModal from '../ReUsebleComponents/UpdateProductProcessingModal';
+import DeleteProductProcessingModal from '../ReUsebleComponents/DeleteProductProcessingModal';
 import { useProductAPI } from '../../hooks/useProductAPI';
 import ToastService from '../../utils/ToastService';
 
@@ -48,12 +51,18 @@ const ProductDashboard: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isAdding, setIsAdding] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<SortColumn>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [showProcessingModal, setShowProcessingModal] = useState<boolean>(false);
+  
+  // ===== SORTING STATE =====
+  const [sortBy, setSortBy] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  
+  // ===== SEPARATE PROCESSING MODALS =====
+  const [showCreateProcessingModal, setShowCreateProcessingModal] = useState<boolean>(false);
+  const [showUpdateProcessingModal, setShowUpdateProcessingModal] = useState<boolean>(false);
+  const [showDeleteProcessingModal, setShowDeleteProcessingModal] = useState<boolean>(false);
   const [processingProductName, setProcessingProductName] = useState<string>('');
 
   // ===== ADVANCED FILTER STATE =====
@@ -186,7 +195,174 @@ const ProductDashboard: React.FC = () => {
 
   const stockCounts = getStockFilterCounts();
 
-  // Placeholder functions for CRUD operations
+  // ===== CRUD OPERATIONS WITH SEPARATE PROCESSING MODALS =====
+  const handleSaveProduct = async (product: Product) => {
+    try {
+      setIsSubmitting(true);
+      
+      if (isAdding) {
+        // Show CREATE processing modal FIRST
+        setProcessingProductName(product.name);
+        setShowCreateProcessingModal(true);
+        
+        // Wait a bit for modal to appear, then start API call
+        setTimeout(async () => {
+          try {
+            // Creating a new product
+            console.log('Creating new product:', product);
+            const newProduct = await createProduct(product);
+            
+            // Add to local state at the TOP of the list
+            setAllProducts(prev => [newProduct, ...prev]);
+            
+            // Show success message (modal will close itself after animation)
+            setTimeout(() => {
+              toastService.addToast('Product created successfully!', 'success');
+              
+              // Close form and reset state
+              setIsAdding(false);
+              setSelectedProduct(null);
+              
+              // Reset to first page to show the new product
+              setCurrentPage(1);
+            }, 500);
+            
+          } catch (error: any) {
+            // Hide processing modal immediately on error
+            setShowCreateProcessingModal(false);
+            throw error;
+          }
+        }, 300);
+        
+      } else if (selectedProduct) {
+        // Show UPDATE processing modal FIRST
+        setProcessingProductName(selectedProduct.name);
+        setShowUpdateProcessingModal(true);
+        
+        // Wait a bit for modal to appear, then start API call
+        setTimeout(async () => {
+          try {
+            // Updating existing product
+            console.log('Updating product:', product);
+            const updatedProduct = await updateProduct(selectedProduct.id, product);
+            
+            // Remove the old product and add updated one at the TOP
+            setAllProducts(prev => {
+              const filtered = prev.filter(p => p.id !== selectedProduct.id);
+              return [updatedProduct, ...filtered];
+            });
+            
+            // Show success message (modal will close itself after animation)
+            setTimeout(() => {
+              toastService.addToast('Product updated successfully!', 'success');
+              
+              // Close editing mode
+              setIsEditing(false);
+              setSelectedProduct(updatedProduct);
+              
+              // Reset to first page to show the updated product
+              setCurrentPage(1);
+            }, 500);
+            
+          } catch (error: any) {
+            // Hide processing modal immediately on error
+            setShowUpdateProcessingModal(false);
+            throw error;
+          }
+        }, 300);
+      }
+      
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      
+      // Hide all processing modals on error
+      setShowCreateProcessingModal(false);
+      setShowUpdateProcessingModal(false);
+      
+      // Extract error message
+      let errorMessage = 'Failed to save product';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map((err: any) => 
+            typeof err === 'object' ? err.msg || err.message || String(err) : String(err)
+          ).join(', ');
+        } else {
+          errorMessage = String(error.response.data.detail);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message
+      toastService.addToast(errorMessage, 'error');
+      
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      // Show DELETE processing modal FIRST
+      setProcessingProductName(productToDelete.name);
+      setShowDeleteProcessingModal(true);
+      
+      // Wait a bit for modal to appear, then start API call
+      setTimeout(async () => {
+        try {
+          console.log('Deleting product:', productToDelete);
+          await deleteProduct(productToDelete.id);
+          
+          // Remove from local state
+          setAllProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+          
+          // Show success message (modal will close itself after animation)
+          setTimeout(() => {
+            toastService.addToast('Product deleted successfully!', 'success');
+            
+            // Close modal and reset state
+            setShowDeleteModal(false);
+            setProductToDelete(null);
+            
+            // If we were viewing this product, close the detail view
+            if (selectedProduct?.id === productToDelete.id) {
+              setSelectedProduct(null);
+              setIsEditing(false);
+            }
+          }, 500);
+          
+        } catch (error: any) {
+          // Hide processing modal immediately on error
+          setShowDeleteProcessingModal(false);
+          throw error;
+        }
+      }, 300);
+      
+    } catch (error: any) {
+      console.error('Error deleting product:', error);
+      
+      // Hide processing modal on error
+      setShowDeleteProcessingModal(false);
+      
+      let errorMessage = 'Failed to delete product';
+      if (error.response?.data?.detail) {
+        errorMessage = String(error.response.data.detail);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toastService.addToast(errorMessage, 'error');
+      
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ===== UI INTERACTION HANDLERS =====
   const handleSort = (column: SortColumn): void => {
     if (sortBy === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -223,7 +399,7 @@ const ProductDashboard: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  // Pagination functions
+  // ===== PAGINATION FUNCTIONS =====
   const handlePageChange = (page: number): void => {
     const newPage = Math.max(1, Math.min(page, totalPages));
     setCurrentPage(newPage);
@@ -241,7 +417,7 @@ const ProductDashboard: React.FC = () => {
     }
   };
 
-  // Product list component
+  // ===== PRODUCT LIST COMPONENT =====
   const ProductListTable = () => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <table className="min-w-full divide-y divide-gray-200">
@@ -415,8 +591,8 @@ const ProductDashboard: React.FC = () => {
           >
             <option value="all">All Stock ({allProducts.length})</option>
             <option value="out_of_stock">Out of Stock ({stockCounts.outOfStock})</option>
-            <option value="low_stock">Low Stock &le;20 ({stockCounts.lowStock})</option>
-            <option value="in_stock">In Stock &gt;20 ({stockCounts.inStock})</option>
+            <option value="low_stock">Low Stock ≤20 ({stockCounts.lowStock})</option>
+            <option value="in_stock">In Stock {`>`}20 ({stockCounts.inStock})</option>
           </select>
 
           {/* Price Range */}
@@ -511,7 +687,7 @@ const ProductDashboard: React.FC = () => {
       {/* MAIN CONTENT AREA */}
       <div className="flex flex-1 overflow-hidden">
         {/* Products List */}
-        <div className={`${selectedProduct || isAdding ? 'w-2/3' : 'w-full'} overflow-auto transition-all duration-300`}>
+        <div className={`${selectedProduct || isAdding || isEditing ? 'w-2/3' : 'w-full'} overflow-auto transition-all duration-300`}>
           <div className="p-4">
             <ProductListTable />
           </div>
@@ -589,12 +765,9 @@ const ProductDashboard: React.FC = () => {
             )}
 
             {(isEditing || isAdding) && (
-              <ProductForm 
-                product={isEditing ? selectedProduct : null}
-                onSave={async (product) => {
-                  // Handle save logic here
-                  console.log('Saving product:', product);
-                }}
+              <ProductForm
+                product={isAdding ? null : selectedProduct}
+                onSave={handleSaveProduct}
                 onCancel={() => {
                   setIsEditing(false);
                   if (isAdding) {
@@ -609,20 +782,30 @@ const ProductDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Modals */}
-      <ProductProcessingModal
-        isVisible={showProcessingModal}
+      {/* Separate Processing Modals */}
+      <CreateProductProcessingModal
+        isVisible={showCreateProcessingModal}
         productName={processingProductName}
-        onComplete={() => setShowProcessingModal(false)}
+        onComplete={() => setShowCreateProcessingModal(false)}
       />
 
+      <UpdateProductProcessingModal
+        isVisible={showUpdateProcessingModal}
+        productName={processingProductName}
+        onComplete={() => setShowUpdateProcessingModal(false)}
+      />
+
+      <DeleteProductProcessingModal
+        isVisible={showDeleteProcessingModal}
+        productName={processingProductName}
+        onComplete={() => setShowDeleteProcessingModal(false)}
+      />
+
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && productToDelete && (
         <DeleteConfirmationModal
           productName={productToDelete.name}
-          onConfirm={async () => {
-            // Handle delete logic here
-            console.log('Deleting product:', productToDelete);
-          }}
+          onConfirm={handleDeleteProduct}
           onCancel={() => {
             setShowDeleteModal(false);
             setProductToDelete(null);
