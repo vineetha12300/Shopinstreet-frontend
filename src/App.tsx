@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import VendorLogin from "./components/VendorLogin/VendorLogin";
 import RegisterVendor from "./components/RegisteVendor/RegisterVendor";
 import UnifiedVendorDashboard from "./components/pages/VendorDashboard";
-import ImagesPage from "./components/images/ImagesPage";
+import DomainPage from "./components/domain/DomainPage";
+
 import VendorOrdersDashboard from "./components/orders/VendorOrdersDashboard";
 import MainLayout from "./components/layout/MainLayout";
 import ToastContainer from './components/ReUsebleComponents/Toast';
@@ -40,7 +41,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<UnifiedVendorDashboard />} />
           <Route path="orders" element={<VendorOrdersDashboard />} />
-          <Route path="images" element={<ImagesPage />} />
+          <Route path="domains" element={<DomainPage />} />
           <Route path="store" element={<VendorStorePage />} />
           
           {/* Add placeholder routes for future features */}
