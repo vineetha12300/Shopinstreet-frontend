@@ -4,7 +4,8 @@ import {
   Package, 
   ShoppingBag, 
   Truck, 
-  BarChart, 
+  BarChart,
+  Globe, 
   Image, 
   Settings, 
   LogOut,
@@ -25,7 +26,7 @@ const MainLayout: React.FC = () => {
     { path: '/dashboard', name: 'Products', icon: <Package size={18} /> },
     { path: '/orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     
-    { path: '/images', name: 'Images', icon: <Image size={18} /> },
+    { path: '/domains', name: 'Domains', icon: <Globe size={18} /> },
     { path: '/analytics', name: 'Analytics', icon: <BarChart size={18} /> },
     { path: '/shipping', name: 'Shipping', icon: <Truck size={18} /> },
     { path: '/settings', name: 'Settings', icon: <Settings size={18} /> },
