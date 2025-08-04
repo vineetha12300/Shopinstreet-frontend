@@ -143,53 +143,57 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
     'Toys & Games', 'Books', 'Food & Grocery', 'Health', 'Other'
   ];
 
+  // Helper function to check if any processing is happening
+  const isAnyProcessing = () => {
+    return isSubmitting || uploading || aiExtracting;
+  };
+
   // Initialize form with existing product data
-  // Initialize form with existing product data
-useEffect(() => {
-  if (product && !isAdding) {
-    setName(product.name);
-    setDescription(product.description);
-    setCategory(product.category);
-    setStock(String(product.stock));
-    setBasePrice(String(product.price));
-    
-    if (product.image_urls && product.image_urls.length > 0) {
-      setImageUrls([...product.image_urls]);
-      setImageFiles([]);
-      setDeletedImageUrls([]);
+  useEffect(() => {
+    if (product && !isAdding) {
+      setName(product.name);
+      setDescription(product.description);
+      setCategory(product.category);
+      setStock(String(product.stock));
+      setBasePrice(String(product.price));
+      
+      if (product.image_urls && product.image_urls.length > 0) {
+        setImageUrls([...product.image_urls]);
+        setImageFiles([]);
+        setDeletedImageUrls([]);
+      } else {
+        setImageUrls([]);
+        setImageFiles([]);
+        setDeletedImageUrls([]);
+      }
+      
+      if (product.pricing_tiers && product.pricing_tiers.length > 0) {
+        setPricingTiers(product.pricing_tiers.map(tier => ({ 
+          moq: tier.moq, 
+          price: tier.price 
+        })));
+      } else {
+        // Initialize with base price if available for editing existing product
+        const initialPrice = product.price || 0;
+        setPricingTiers([{ moq: 1, price: initialPrice }]);
+      }
     } else {
+      // Reset form for adding new product
+      setName('');
+      setDescription('');
+      setCategory('');
+      setStock('');
+      setBasePrice('');
       setImageUrls([]);
+      setPricingTiers([{ moq: 1, price: 0 }]); // Will be auto-filled when basePrice is set
       setImageFiles([]);
       setDeletedImageUrls([]);
+      setAiExtractedFields([]);
     }
     
-    if (product.pricing_tiers && product.pricing_tiers.length > 0) {
-      setPricingTiers(product.pricing_tiers.map(tier => ({ 
-        moq: tier.moq, 
-        price: tier.price 
-      })));
-    } else {
-      // Initialize with base price if available for editing existing product
-      const initialPrice = product.price || 0;
-      setPricingTiers([{ moq: 1, price: initialPrice }]);
-    }
-  } else {
-    // Reset form for adding new product
-    setName('');
-    setDescription('');
-    setCategory('');
-    setStock('');
-    setBasePrice('');
-    setImageUrls([]);
-    setPricingTiers([{ moq: 1, price: 0 }]); // Will be auto-filled when basePrice is set
-    setImageFiles([]);
-    setDeletedImageUrls([]);
-    setAiExtractedFields([]);
-  }
-  
-  setIsSubmitting(false);
-  setAiSuggestionVisible(false);
-}, [product, isAdding]);
+    setIsSubmitting(false);
+    setAiSuggestionVisible(false);
+  }, [product, isAdding]);
 
   // Show AI suggestion when first image is uploaded
   useEffect(() => {
@@ -198,23 +202,22 @@ useEffect(() => {
     }
   }, [imageFiles.length, aiSuggestionVisible, isAdding]);
 
-  
-useEffect(() => {
-  const basePriceNum = parseFloat(basePrice);
-  
-  // Only auto-fill if basePrice is valid and we have tiers
-  if (basePriceNum > 0 && pricingTiers.length > 0) {
-    setPricingTiers(prevTiers => 
-      prevTiers.map((tier, index) => {
-        // Only update first tier if it's 0 or if it's the initial tier
-        if (index === 0 && (tier.price === 0 || tier.moq === 1)) {
-          return { ...tier, price: basePriceNum };
-        }
-        return tier;
-      })
-    );
-  }
-}, [basePrice]); // Only depend on basePrice, not pricingTiers to avoid loops
+  useEffect(() => {
+    const basePriceNum = parseFloat(basePrice);
+    
+    // Only auto-fill if basePrice is valid and we have tiers
+    if (basePriceNum > 0 && pricingTiers.length > 0) {
+      setPricingTiers(prevTiers => 
+        prevTiers.map((tier, index) => {
+          // Only update first tier if it's 0 or if it's the initial tier
+          if (index === 0 && (tier.price === 0 || tier.moq === 1)) {
+            return { ...tier, price: basePriceNum };
+          }
+          return tier;
+        })
+      );
+    }
+  }, [basePrice]); // Only depend on basePrice, not pricingTiers to avoid loops
 
   // AI Extraction Function
   const handleAIExtraction = async () => {
@@ -339,7 +342,7 @@ useEffect(() => {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
 
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -398,7 +401,7 @@ useEffect(() => {
   };
 
   const removeImage = async (index: number) => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
 
     const urlToRemove = imageUrls[index];
     
@@ -428,7 +431,7 @@ useEffect(() => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting || uploading) return;
+    if (isAnyProcessing()) return;
     
     if (!validateForm()) return;
     
@@ -474,32 +477,32 @@ useEffect(() => {
   };
 
   const addPricingTier = () => {
-  if (isSubmitting) return;
-  
-  const lastTier = pricingTiers[pricingTiers.length - 1];
-  const newMoq = lastTier ? Math.max(lastTier.moq + 10, 1) : 1;
-  
-  // Safe price calculation with fallbacks
-  let autoPrice = 0;
-  const basePriceNum = parseFloat(basePrice) || 0;
-  const lastTierPrice = lastTier?.price || 0;
-  
-  if (basePriceNum > 0) {
-    autoPrice = basePriceNum;
-  } else if (lastTierPrice > 0) {
-    autoPrice = lastTierPrice;
-  }
-  
-  setPricingTiers(prev => [...prev, { moq: newMoq, price: autoPrice }]);
-};
+    if (isAnyProcessing()) return;
+    
+    const lastTier = pricingTiers[pricingTiers.length - 1];
+    const newMoq = lastTier ? Math.max(lastTier.moq + 10, 1) : 1;
+    
+    // Safe price calculation with fallbacks
+    let autoPrice = 0;
+    const basePriceNum = parseFloat(basePrice) || 0;
+    const lastTierPrice = lastTier?.price || 0;
+    
+    if (basePriceNum > 0) {
+      autoPrice = basePriceNum;
+    } else if (lastTierPrice > 0) {
+      autoPrice = lastTierPrice;
+    }
+    
+    setPricingTiers(prev => [...prev, { moq: newMoq, price: autoPrice }]);
+  };
 
   const removePricingTier = (index: number) => {
-    if (isSubmitting || pricingTiers.length <= 1) return;
+    if (isAnyProcessing() || pricingTiers.length <= 1) return;
     setPricingTiers(pricingTiers.filter((_, i) => i !== index));
   };
 
   const updatePricingTier = (index: number, field: 'moq' | 'price', value: string) => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
     const updatedTiers = [...pricingTiers];
     const numValue = field === 'moq' ? parseInt(value, 10) || 0 : parseFloat(value) || 0;
     updatedTiers[index] = { ...updatedTiers[index], [field]: numValue };
@@ -507,12 +510,12 @@ useEffect(() => {
   };
 
   const triggerFileInput = () => {
-    if (isSubmitting || uploading) return;
+    if (isAnyProcessing()) return;
     fileInputRef.current?.click();
   };
 
   const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
     const value = e.target.value;
     if (value === '' || /^\d+$/.test(value)) {
       setStock(value);
@@ -520,7 +523,7 @@ useEffect(() => {
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
     const value = e.target.value;
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setBasePrice(value);
@@ -528,15 +531,15 @@ useEffect(() => {
   };
 
   const handleCancel = () => {
-    if (isSubmitting) return;
+    if (isAnyProcessing()) return;
     onCancel();
   };
 
   const getFieldClassName = (fieldName: string, hasError: boolean) => {
     const baseClasses = `w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
       hasError ? 'border-red-500' : 'border-gray-300'
-    } ${isSubmitting ? 'bg-gray-50 cursor-not-allowed' : ''}`;
-    console.log('Button states:', { isSubmitting, uploading, aiExtracting });
+    } ${isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''}`;
+    
     // Add special styling for AI-extracted fields
     if (aiExtractedFields.includes(fieldName)) {
       return `${baseClasses} bg-gradient-to-r from-purple-50 to-blue-50 border-purple-300`;
@@ -586,8 +589,8 @@ useEffect(() => {
                       name="processingType"
                       value="raw"
                       checked={processingType === 'raw'}
-                      onChange={(e) => !isSubmitting && setProcessingType('raw')}
-                      disabled={isSubmitting}
+                      onChange={(e) => !isAnyProcessing() && setProcessingType('raw')}
+                      disabled={isAnyProcessing()}
                       className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 mt-0.5"
                     />
                     <div className="ml-3 flex-1">
@@ -610,8 +613,8 @@ useEffect(() => {
                       name="processingType"
                       value="enhanced"
                       checked={processingType === 'enhanced'}
-                      onChange={(e) => !isSubmitting && setProcessingType('enhanced')}
-                      disabled={isSubmitting}
+                      onChange={(e) => !isAnyProcessing() && setProcessingType('enhanced')}
+                      disabled={isAnyProcessing()}
                       className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 mt-0.5"
                     />
                     <div className="ml-3 flex-1">
@@ -642,9 +645,9 @@ useEffect(() => {
                     <button 
                       type="button"
                       onClick={() => removeImage(index)}
-                      disabled={isSubmitting}
+                      disabled={isAnyProcessing()}
                       className={`absolute -top-2 -right-2 rounded-full p-1 transition-all duration-200 shadow-lg ${
-                        isSubmitting 
+                        isAnyProcessing() 
                           ? 'bg-gray-400 cursor-not-allowed opacity-50' 
                           : 'bg-red-500 hover:bg-red-600 opacity-0 group-hover:opacity-100'
                       } text-white`}
@@ -657,7 +660,7 @@ useEffect(() => {
                 {imageUrls.length < 6 && (
                   <div 
                     className={`w-full h-24 border-2 border-dashed rounded-lg flex items-center justify-center transition-all duration-200 ${
-                      isSubmitting || uploading
+                      isAnyProcessing()
                         ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
                         : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
                     }`}
@@ -665,10 +668,10 @@ useEffect(() => {
                   >
                     <div className="text-center">
                       <ImagePlus size={20} className={`mx-auto mb-1 ${
-                        isSubmitting || uploading ? 'text-gray-300' : 'text-gray-400'
+                        isAnyProcessing() ? 'text-gray-300' : 'text-gray-400'
                       }`} />
                       <span className={`text-xs ${
-                        isSubmitting || uploading ? 'text-gray-300' : 'text-gray-500'
+                        isAnyProcessing() ? 'text-gray-300' : 'text-gray-500'
                       }`}>Add Image</span>
                     </div>
                   </div>
@@ -678,41 +681,18 @@ useEffect(() => {
               {/* Upload Controls */}
               <div className="flex items-center space-x-3 mb-4">
                 <button
-  type="button"
-  onClick={triggerFileInput}
-  disabled={imageUrls.length >= 6 || uploading || isSubmitting}
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 20px',
-    background: imageUrls.length >= 6 || uploading || isSubmitting ? '#9CA3AF' : '#1DA1F2',
-    color: '#ffffff',
-    borderRadius: '24px',
-    border: 'none',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: imageUrls.length >= 6 || uploading || isSubmitting ? 'not-allowed' : 'pointer',
-    opacity: imageUrls.length >= 6 || uploading || isSubmitting ? 0.6 : 1,
-    transition: 'all 0.2s ease',
-    transform: 'scale(1)'
-  }}
-  onMouseEnter={(e) => {
-    if (!(imageUrls.length >= 6 || uploading || isSubmitting)) {
-      (e.target as HTMLButtonElement).style.background = '#1991DB';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1.02)';
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!(imageUrls.length >= 6 || uploading || isSubmitting)) {
-      (e.target as HTMLButtonElement).style.background = '#1DA1F2';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-    }
-  }}
->
-  <Upload size={16} />
-  Upload Images
-</button>
+                  type="button"
+                  onClick={triggerFileInput}
+                  disabled={imageUrls.length >= 6 || isAnyProcessing()}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    imageUrls.length >= 6 || isAnyProcessing()
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                      : 'bg-blue-500 text-white hover:bg-blue-600 hover:shadow-md'
+                  }`}
+                >
+                  <Upload size={16} />
+                  Upload Images
+                </button>
                 <span className="text-sm text-gray-500">
                   {imageUrls.length}/6 images
                 </span>
@@ -731,38 +711,15 @@ useEffect(() => {
                         Let our AI analyze your product image and automatically fill the product details for you.
                       </p>
                       <button
-                            type="button"
-                            onClick={handleAIExtraction}
-                            disabled={aiExtracting || imageFiles.length === 0}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '10px 20px',
-                              background: '#000000',
-                              color: '#ffffff',
-                              borderRadius: '24px',
-                              border: 'none',
-                              fontSize: '15px',
-                              fontWeight: '700',
-                              cursor: aiExtracting || imageFiles.length === 0 ? 'not-allowed' : 'pointer',
-                              opacity: imageFiles.length === 0 ? 0.5 : 1,
-                              transition: 'all 0.2s ease',
-                              transform: 'scale(1)'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!aiExtracting && imageFiles.length > 0) {
-                                (e.target as HTMLButtonElement).style.background = '#1a1a1a';
-                                (e.target as HTMLButtonElement).style.transform = 'scale(1.02)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!aiExtracting && imageFiles.length > 0) {
-                                (e.target as HTMLButtonElement).style.background = '#000000';
-                                (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-                              }
-                            }}
-                        >
+                        type="button"
+                        onClick={handleAIExtraction}
+                        disabled={aiExtracting || imageFiles.length === 0}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                          aiExtracting || imageFiles.length === 0
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                            : 'bg-black text-white hover:bg-gray-800'
+                        }`}
+                      >
                         {aiExtracting ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -798,7 +755,12 @@ useEffect(() => {
                 <button
                   type="button"
                   onClick={handleAIExtraction}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-lg hover:from-purple-200 hover:to-blue-200 transition-all border border-purple-200"
+                  disabled={isAnyProcessing()}
+                  className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-all border ${
+                    isAnyProcessing()
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                      : 'bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 hover:from-purple-200 hover:to-blue-200 border-purple-200'
+                  }`}
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Extract Product Details with AI</span>
@@ -811,7 +773,7 @@ useEffect(() => {
                 onChange={handleImageUpload}
                 accept="image/*"
                 multiple
-                disabled={isSubmitting}
+                disabled={isAnyProcessing()}
                 className="hidden"
               />
               
@@ -839,8 +801,8 @@ useEffect(() => {
               <input 
                 type="text" 
                 value={name}
-                onChange={(e) => !isSubmitting && setName(e.target.value)}
-                disabled={isSubmitting}
+                onChange={(e) => !isAnyProcessing() && setName(e.target.value)}
+                disabled={isAnyProcessing()}
                 className={getFieldClassName('name', !!errors.name)}
                 placeholder="e.g. Premium Organic Coffee Beans"
               />
@@ -864,8 +826,8 @@ useEffect(() => {
               </label>
               <select 
                 value={category}
-                onChange={(e) => !isSubmitting && setCategory(e.target.value)}
-                disabled={isSubmitting}
+                onChange={(e) => !isAnyProcessing() && setCategory(e.target.value)}
+                disabled={isAnyProcessing()}
                 className={getFieldClassName('category', !!errors.category)}
               >
                 <option value="">Select a category</option>
@@ -893,8 +855,8 @@ useEffect(() => {
               </label>
               <textarea 
                 value={description}
-                onChange={(e) => !isSubmitting && setDescription(e.target.value)}
-                disabled={isSubmitting}
+                onChange={(e) => !isAnyProcessing() && setDescription(e.target.value)}
+                disabled={isAnyProcessing()}
                 rows={5}
                 className={`${getFieldClassName('description', !!errors.description)} resize-none`}
                 placeholder="Describe your product features, benefits, and details..."
@@ -917,7 +879,7 @@ useEffect(() => {
                   type="text"
                   value={stock}
                   onChange={handleStockChange}
-                  disabled={isSubmitting}
+                  disabled={isAnyProcessing()}
                   className={getFieldClassName('stock', !!errors.stock)}
                   placeholder="100"
                 />
@@ -934,7 +896,7 @@ useEffect(() => {
                   type="text"
                   value={basePrice}
                   onChange={handlePriceChange}
-                  disabled={isSubmitting}
+                  disabled={isAnyProcessing()}
                   className={getFieldClassName('basePrice', !!errors.basePrice)}
                   placeholder="24.99"
                 />
@@ -951,41 +913,18 @@ useEffect(() => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Pricing Tiers</h3>
             <button
-  type="button"
-  onClick={addPricingTier}
-  disabled={isSubmitting}
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 16px',
-    background: isSubmitting ? '#9CA3AF' : '#10B981',
-    color: '#ffffff',
-    borderRadius: '20px',
-    border: 'none',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-    opacity: isSubmitting ? 0.6 : 1,
-    transition: 'all 0.2s ease',
-    transform: 'scale(1)'
-  }}
-  onMouseEnter={(e) => {
-    if (!isSubmitting) {
-      (e.target as HTMLButtonElement).style.background = '#059669';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1.03)';
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!isSubmitting) {
-      (e.target as HTMLButtonElement).style.background = '#10B981';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-    }
-  }}
->
-  <Plus size={14} />
-  Add Tier
-</button>
+              type="button"
+              onClick={addPricingTier}
+              disabled={isAnyProcessing()}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                isAnyProcessing()
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                  : 'bg-green-500 text-white hover:bg-green-600 hover:shadow-md'
+              }`}
+            >
+              <Plus size={14} />
+              Add Tier
+            </button>
           </div>
           
           <div className="space-y-3">
@@ -999,9 +938,9 @@ useEffect(() => {
                     type="text"
                     value={tier.moq}
                     onChange={(e) => updatePricingTier(index, 'moq', e.target.value)}
-                    disabled={isSubmitting}
+                    disabled={isAnyProcessing()}
                     className={`w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                      isSubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                      isAnyProcessing() ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
                     placeholder="1"
                   />
@@ -1018,9 +957,9 @@ useEffect(() => {
                     type="text"
                     value={tier.price}
                     onChange={(e) => updatePricingTier(index, 'price', e.target.value)}
-                    disabled={isSubmitting}
+                    disabled={isAnyProcessing()}
                     className={`w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                      isSubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                      isAnyProcessing() ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
                     placeholder="0.00"
                   />
@@ -1033,9 +972,9 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={() => removePricingTier(index)}
-                    disabled={isSubmitting}
+                    disabled={isAnyProcessing()}
                     className={`mt-6 p-2 rounded transition-all ${
-                      isSubmitting 
+                      isAnyProcessing() 
                         ? 'text-gray-400 cursor-not-allowed' 
                         : 'text-red-500 hover:bg-red-50'
                     }`}
@@ -1060,61 +999,37 @@ useEffect(() => {
           <button
             type="button"
             onClick={handleCancel}
-            disabled={isSubmitting || uploading}
+            disabled={isAnyProcessing()}
             className={`px-6 py-3 rounded-lg font-medium transition-all ${
-              isSubmitting || uploading
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              isAnyProcessing()
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200' 
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400'
             }`}
           >
             Cancel
           </button>
           
-        
-  <button
-  type="submit"
-  disabled={isSubmitting || uploading}
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 24px',
-    background: '#1DA1F2',
-    color: '#ffffff',
-    borderRadius: '24px',
-    border: 'none',
-    fontSize: '15px',
-    fontWeight: '700',
-    cursor: isSubmitting || uploading ? 'not-allowed' : 'pointer',
-    opacity: isSubmitting || uploading ? 0.5 : 1,
-    transition: 'all 0.2s ease',
-    transform: 'scale(1)'
-  }}
-  onMouseEnter={(e) => {
-    if (!isSubmitting && !uploading) {
-      (e.target as HTMLButtonElement).style.background = '#1991DB';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1.02)';
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!isSubmitting && !uploading) {
-      (e.target as HTMLButtonElement).style.background = '#1DA1F2';
-      (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-    }
-  }}
->
-  {isSubmitting ? (
-    <>
-      <RefreshCw className="w-4 h-4 animate-spin" />
-      <span>{isAdding ? "Adding..." : "Updating..."}</span>
-    </>
-  ) : (
-    <>
-      <Save className="w-4 h-4" />
-      <span>{isAdding ? "Add Product" : "Update Product"}</span>
-    </>
-  )}
-</button>
+          <button
+            type="submit"
+            disabled={isAnyProcessing()}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+              isAnyProcessing()
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-70 shadow-none'
+                : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:scale-105'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>{isAdding ? "Creating..." : "Updating..."}</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>{isAdding ? "Create Product" : "Update Product"}</span>
+              </>
+            )}
+          </button>
         </div>
       </form>
 

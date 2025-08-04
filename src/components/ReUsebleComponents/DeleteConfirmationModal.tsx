@@ -1,17 +1,18 @@
-// DeleteConfirmationModal.tsx
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 
 interface DeleteConfirmationModalProps {
   productName: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isSubmitting?: boolean; // Add this prop for processing state
 }
 
 const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
   productName, 
   onConfirm, 
-  onCancel 
+  onCancel,
+  isSubmitting = false // Default to false for backward compatibility
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -27,17 +28,40 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
         </p>
         
         <div className="flex justify-end space-x-3">
-          <button 
+          <button
+            type="button"
             onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            disabled={isSubmitting}
+            className={`px-6 py-2 rounded-lg font-medium transition-all ${
+              isSubmitting
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400'
+            }`}
           >
             Cancel
           </button>
-          <button 
+          
+          <button
+            type="button"
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            disabled={isSubmitting}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all ${
+              isSubmitting
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-70'
+                : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg'
+            }`}
           >
-            Delete
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Product</span>
+              </>
+            )}
           </button>
         </div>
       </div>
