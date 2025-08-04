@@ -96,7 +96,7 @@ const ProductDashboard: React.FC = () => {
  const filteredProducts = useMemo(() => {
   return allProducts
     .filter(product => {
-      // ... your existing filter logic stays the same ...
+      
       const searchLower = search.toLowerCase();
       const matchesSearch = search === "" || 
         product.name.toLowerCase().includes(searchLower) || 
