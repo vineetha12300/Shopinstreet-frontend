@@ -38,7 +38,7 @@ import DeleteProductProcessingModal from '../ReUsebleComponents/DeleteProductPro
 import { useProductAPI } from '../../hooks/useProductAPI';
 import ToastService from '../../utils/ToastService';
 
-type SortColumn = 'name' | 'category' | 'stock' | 'price';
+type SortColumn = 'name' | 'category' | 'stock' | 'price'| 'created_at';
 type SortDirection = 'asc' | 'desc';
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
 
@@ -61,8 +61,8 @@ const ProductDashboard: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   // ===== SORTING STATE =====
-  const [sortBy, setSortBy] = useState<SortColumn>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortBy, setSortBy] = useState<SortColumn>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   // ===== SEPARATE PROCESSING MODALS =====
   const [showCreateProcessingModal, setShowCreateProcessingModal] = useState<boolean>(false);
@@ -93,51 +93,53 @@ const ProductDashboard: React.FC = () => {
   };
 
   // ===== FILTER LOGIC =====
-  const filteredProducts = useMemo(() => {
-    return allProducts
-      .filter(product => {
-        // Search filter
-        const searchLower = search.toLowerCase();
-        const matchesSearch = search === "" || 
-          product.name.toLowerCase().includes(searchLower) || 
-          product.description?.toLowerCase().includes(searchLower) ||
-          product.category.toLowerCase().includes(searchLower) ||
-          product.id.toString().includes(searchLower);
-        
-        // Category filter
-        const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-        
-        // Stock filter
-        let matchesStock = true;
-        if (stockFilter === 'out_of_stock') {
-          matchesStock = product.stock === 0;
-        } else if (stockFilter === 'low_stock') {
-          matchesStock = product.stock > 0 && product.stock <= 20;
-        } else if (stockFilter === 'in_stock') {
-          matchesStock = product.stock > 20;
-        }
-        
-        // Price range filter
-        const matchesPrice = 
-          (priceRange.min === null || product.price >= priceRange.min) &&
-          (priceRange.max === null || product.price <= priceRange.max);
-        
-        return matchesSearch && matchesCategory && matchesStock && matchesPrice;
-      })
-      .sort((a, b) => {
-        let comparison = 0;
-        if (sortBy === 'name') {
-          comparison = a.name.localeCompare(b.name);
-        } else if (sortBy === 'category') {
-          comparison = a.category.localeCompare(b.category);
-        } else if (sortBy === 'stock') {
-          comparison = a.stock - b.stock;
-        } else if (sortBy === 'price') {
-          comparison = a.price - b.price;
-        }
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-  }, [allProducts, search, categoryFilter, stockFilter, priceRange, sortBy, sortDirection]);
+ const filteredProducts = useMemo(() => {
+  return allProducts
+    .filter(product => {
+      // ... your existing filter logic stays the same ...
+      const searchLower = search.toLowerCase();
+      const matchesSearch = search === "" || 
+        product.name.toLowerCase().includes(searchLower) || 
+        product.description?.toLowerCase().includes(searchLower) ||
+        product.category.toLowerCase().includes(searchLower) ||
+        product.id.toString().includes(searchLower);
+      
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+      
+      let matchesStock = true;
+      if (stockFilter === 'out_of_stock') {
+        matchesStock = product.stock === 0;
+      } else if (stockFilter === 'low_stock') {
+        matchesStock = product.stock > 0 && product.stock <= 20;
+      } else if (stockFilter === 'in_stock') {
+        matchesStock = product.stock > 20;
+      }
+      
+      const matchesPrice = 
+        (priceRange.min === null || product.price >= priceRange.min) &&
+        (priceRange.max === null || product.price <= priceRange.max);
+      
+      return matchesSearch && matchesCategory && matchesStock && matchesPrice;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      
+      // ✅ ADD: Handle created_at sorting
+      if (sortBy === 'created_at') {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'category') {
+        comparison = a.category.localeCompare(b.category);
+      } else if (sortBy === 'stock') {
+        comparison = a.stock - b.stock;
+      } else if (sortBy === 'price') {
+        comparison = a.price - b.price;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+}, [allProducts, search, categoryFilter, stockFilter, priceRange, sortBy, sortDirection]);
 
   // Pagination calculations
   const totalItems = filteredProducts.length;
@@ -165,6 +167,11 @@ const ProductDashboard: React.FC = () => {
         console.log(`✅ Loaded ${productsResponse.data.length} total products`);
         setAllProducts(productsResponse.data);
         
+        const sortedProducts = productsResponse.data.sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      
+      setAllProducts(sortedProducts);
         const uniqueCategories: string[] = [...new Set(productsResponse.data.map((product: Product) => product.category))];
         setCategories(uniqueCategories);
       } else {
