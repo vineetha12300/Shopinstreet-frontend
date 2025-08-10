@@ -5,7 +5,7 @@ import StepTwo from "./StepTwo";
 import StepThree from "./StepThree";
 import axios from "axios";
 import "./RegisterVendor.css";
-import SuccessModal from "./SucessModal";
+import  { ProfessionalSuccessModal } from "./SucessModal";
 import AlreadyExistsModal from "./AlreadyExistedVendor";
 import shopinStreet from "../images/shopinstreetlogo_white.jpg.jpeg";
 
@@ -34,8 +34,16 @@ const RegisterVendor = () => {
     business_logo: ""
   });
 
+  interface WebsiteInfo {
+  subdomain: string | null;
+  website_url: string | null;
+  status: string;
+  readiness_score: number;
+  next_steps: string[];
+}
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+  const [websiteInfo, setWebsiteInfo] = useState<WebsiteInfo | null>(null);
+  const [vendorId, setVendorId] = useState<number | null>(null);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -83,22 +91,32 @@ const RegisterVendor = () => {
   const prev = () => setStep(prev => prev - 1);
 
   const submit = async () => {
-    try {
-      const { confirm_password, ...payload } = formData;
-      await axios.post("http://localhost:8000/api/vendor/register", payload);
-      setShowSuccess(true); // ✅ show modal on success
-    } catch (error: any) {
-      const message = error.response?.data?.detail || "";
-
-      if (message.includes("Vendor already exists")) {
-        setShowAlreadyExists(true);
-      } else {
-        alert("❌ " + message || "Registration failed");
-      }
-
-      console.error(error);
+  try {
+    const { confirm_password, ...payload } = formData;
+    
+    // Updated API call to handle enhanced response
+    const response = await axios.post("http://localhost:8000/api/vendor/register", payload);
+    
+    // Check if response includes website info
+    if (response.data.website_info) {
+      setWebsiteInfo(response.data.website_info);
+      setVendorId(response.data.vendor_id);
     }
-  };
+    
+    setShowSuccess(true);
+    
+  } catch (error: any) {
+    const message = error.response?.data?.detail || "";
+
+    if (message.includes("Vendor already exists")) {
+      setShowAlreadyExists(true);
+    } else {
+      alert("❌ " + message || "Registration failed");
+    }
+
+    console.error(error);
+  }
+};
 
   return (
     <div  className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -202,8 +220,15 @@ const RegisterVendor = () => {
         </div>
       </div>
 
-      {/* Success Modal */}
-      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      {showSuccess && (
+  <ProfessionalSuccessModal 
+    isOpen={showSuccess}
+    onClose={() => setShowSuccess(false)}
+    websiteInfo={websiteInfo ?? undefined}
+    vendorId={vendorId ?? undefined}
+    businessName={formData.business_name}
+  />
+)}
       
       {/* Already Exists Modal */}
       {showAlreadyExists && <AlreadyExistsModal onClose={() => setShowAlreadyExists(false)} />}
