@@ -1,112 +1,128 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Globe, 
-  Search, 
+  Plus, 
+  Eye, 
+  Settings, 
   Clock, 
-  Crown, 
-  AlertCircle, 
   CheckCircle, 
-  Star,
-  Plus,
+  AlertCircle,
   ExternalLink,
-  Shield,
+  Crown,
   Zap,
+  Gift,
+  Search,
   ArrowRight,
-  Check,
-  RefreshCw,
-  IndianRupee
+  Sparkles,
+  TrendingUp,
+  Shield,
+  Server,
+  Wifi,
+  RotateCcw
 } from 'lucide-react';
 
-// Updated interfaces to match your real API response
+interface Domain {
+  id: number;
+  domain_name: string;
+  type: 'free' | 'purchased' | 'custom';
+  status: 'draft' | 'preview' | 'live' | 'failed';
+  website_url: string;
+  ssl_enabled: boolean;
+  hosting_active: boolean;
+  dns_configured: boolean;
+  purchase_price_inr?: number;
+  renewal_price_inr?: number;
+  expiry_date?: string;
+  created_at: string;
+  template_id?: number;
+}
+
+interface DomainOrder {
+  id: number;
+  order_number: string;
+  domain_name: string;
+  status: string;
+  completion_percentage: number;
+  current_step: string;
+  total_amount_inr: number;
+  payment_status: string;
+  error_message?: string;
+}
+
 interface DomainSuggestion {
   suggested_domain: string;
-  tld: string;
-  registration_price_inr: number;
-  renewal_price_inr: number;
-  registration_price_display: string;
-  renewal_price_display: string;
   is_available: boolean;
-  is_premium: boolean;
-  is_popular_tld: boolean;
-  recommendation_score: number;
-  hosting_included: boolean;
-  ssl_included: boolean;
-  setup_time: string;
+  price_inr: number;
+  tld: string;
   registrar: string;
 }
 
-interface DomainSuggestionResponse {
-  success: boolean;
-  suggestions: DomainSuggestion[];
-  business_name: string;
-  total_suggestions: number;
-  currency: string;
-  market: string;
-  cheapest_price_inr: number;
-}
-
-interface ContactInfo {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  organization: string;
-  address: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-}
-
 const DomainPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'search' | 'connect'>('search');
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [orders, setOrders] = useState<DomainOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'domains' | 'orders' | 'search'>('domains');
   const [businessName, setBusinessName] = useState('');
   const [suggestions, setSuggestions] = useState<DomainSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchPerformed, setSearchPerformed] = useState(false);
 
-  // Custom domain connection state
-  const [customDomain, setCustomDomain] = useState('');
-  const [registrar, setRegistrar] = useState('');
-  const [customDomainLoading, setCustomDomainLoading] = useState(false);
-
-  // Purchase modal state
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [selectedDomain, setSelectedDomain] = useState<DomainSuggestion | null>(null);
-
-  // Clear results when search input is cleared
   useEffect(() => {
-    if (!businessName.trim()) {
-      setSuggestions([]);
-      setSearchPerformed(false);
-      setError(null);
-    }
-  }, [businessName]);
+    fetchVendorDomains();
+    fetchDomainOrders();
+  }, []);
 
-  const searchDomainSuggestions = async () => {
+  const fetchVendorDomains = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/domains/my-domains', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDomains(data.domains || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch domains:', error);
+      setDomains([]);
+    }
+  };
+
+  const fetchDomainOrders = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/domains/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOrders(data.orders || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchDomains = async () => {
     if (!businessName.trim()) {
       setError('Please enter a business name');
       return;
     }
 
-    if (businessName.trim().length < 2) {
-      setError('Business name must be at least 2 characters long');
-      return;
-    }
-
-    setLoading(true);
+    setSearchLoading(true);
     setError(null);
-    
+
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Please log in to search for domains');
-      }
-
-      // Updated to match your real API endpoint
       const response = await fetch(
-        `http://localhost:8000/api/domains/search/${encodeURIComponent(businessName.trim())}`,
+        `/api/domains/search/${encodeURIComponent(businessName.trim())}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -116,471 +132,469 @@ const DomainPage: React.FC = () => {
       );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Please log in again');
-        }
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to get domain suggestions');
+        throw new Error('Failed to search domains');
       }
 
-      const data: DomainSuggestionResponse = await response.json();
-      
-      // Validate response structure
-      if (!data.success || !data.suggestions) {
-        throw new Error('Invalid response format');
-      }
-
-      setSuggestions(data.suggestions);
-      setSearchPerformed(true);
-      
-      console.log(`✅ Found ${data.suggestions.length} domain suggestions`);
-      console.log(`💰 Cheapest price: ₹${data.cheapest_price_inr}`);
-      
+      const data = await response.json();
+      setSuggestions(data.suggestions || []);
     } catch (err) {
-      console.error('Domain search error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Search failed');
       setSuggestions([]);
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
-  const handleDomainSelect = (domain: DomainSuggestion) => {
-    setSelectedDomain(domain);
-    setShowPurchaseModal(true);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      if (activeTab === 'search') {
-        searchDomainSuggestions();
+  const getStatusBadge = (status: 'draft' | 'preview' | 'live' | 'failed') => {
+    const statusConfig = {
+      draft: { 
+        color: 'bg-slate-100 text-slate-700 border-slate-200', 
+        icon: Clock
+      },
+      preview: { 
+        color: 'bg-amber-100 text-amber-700 border-amber-200', 
+        icon: Eye
+      },
+      live: { 
+        color: 'bg-emerald-100 text-emerald-700 border-emerald-200', 
+        icon: CheckCircle
+      },
+      failed: { 
+        color: 'bg-rose-100 text-rose-700 border-rose-200', 
+        icon: AlertCircle
       }
+    };
+
+    const config = statusConfig[status];
+    const Icon = config.icon;
+
+    return (
+      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${config.color}`}>
+        <Icon size={12} />
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </div>
+    );
+  };
+
+  const getTypeConfig = (type: string) => {
+    switch (type) {
+      case 'free':
+        return { 
+          icon: Gift, 
+          color: 'text-emerald-600 bg-emerald-50',
+          label: 'Free Subdomain',
+          accent: 'border-emerald-200'
+        };
+      case 'purchased':
+        return { 
+          icon: Crown, 
+          color: 'bg-blue-50',
+          label: 'Premium Domain',
+          accent: 'border-blue-200'
+        };
+      case 'custom':
+        return { 
+          icon: Zap, 
+          color: 'text-orange-600 bg-orange-50',
+          label: 'Custom Domain',
+          accent: 'border-orange-200'
+        };
+      default:
+        return { 
+          icon: Globe, 
+          color: 'text-slate-600 bg-slate-50',
+          label: 'Domain',
+          accent: 'border-slate-200'
+        };
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 0.8) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-    if (score >= 0.6) return 'text-blue-600 bg-blue-50 border-blue-200';
-    return 'text-slate-600 bg-slate-50 border-slate-200';
-  };
-
-  const getScoreIcon = (score: number) => {
-    if (score >= 0.8) return <Check className="w-3 h-3" />;
-    if (score >= 0.6) return <Star className="w-3 h-3" />;
-    return <Globe className="w-3 h-3" />;
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 0.8) return 'Perfect match';
-    if (score >= 0.6) return 'Great match';
-    return 'Good match';
-  };
-
-  const getAvailabilityIcon = (domain: DomainSuggestion) => {
-    if (domain.is_available) {
-      return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-    } else {
-      return <AlertCircle className="w-4 h-4 text-red-500" />;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Loading your domains...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Domains</h1>
-              <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                <Globe className="w-4 h-4" />
-                <span>Professional web addresses with real GoDaddy API</span>
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 backdrop-blur-sm bg-white/95">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl" style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)'}}>
+                <Globe className="text-white" size={22} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Domain Manager</h1>
+                <p className="text-slate-600 text-sm">Manage your websites and domains</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm">
-              <Zap className="w-4 h-4" />
-              <span>Real-time availability</span>
-            </div>
+            
+            <button 
+              onClick={() => setActiveTab('search')}
+              className="inline-flex items-center gap-2 text-white px-5 py-2.5 rounded-lg hover:opacity-90 transition-all shadow-sm font-medium"
+              style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)'}}
+            >
+              <Search size={16} />
+              Search Domains
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
-        {/* Hero Section */}
-        <div className="text-center py-12 sm:py-16 border-b border-slate-200">
-          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-semibold text-slate-900 mb-4 sm:mb-6 tracking-tight px-4">
-            Get your perfect domain
-          </h1>
-          <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed px-4">
-            Professional web addresses starting at ₹599/year. Real-time availability check with GoDaddy API.
-          </p>
-          <div className="flex items-center justify-center gap-4 text-sm text-slate-500">
-            <div className="flex items-center gap-1">
-              <Shield className="w-4 h-4" />
-              <span>SSL included</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Zap className="w-4 h-4" />
-              <span>Instant setup</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <IndianRupee className="w-4 h-4" />
-              <span>Indian pricing</span>
-            </div>
-          </div>
-        </div>
-
-        
-
-        {/* Tab Navigation */}
-        <div className="flex justify-center py-8 sm:py-12 px-4">
-          <div className="flex bg-slate-100 p-1 rounded-lg w-full max-w-sm">
-            <button
-              onClick={() => setActiveTab('search')}
-              className={`flex-1 px-4 sm:px-6 py-2.5 rounded-md font-medium text-sm transition-all ${
-                activeTab === 'search'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Find new domain
-            </button>
-            <button
-              onClick={() => setActiveTab('connect')}
-              className={`flex-1 px-4 sm:px-6 py-2.5 rounded-md font-medium text-sm transition-all ${
-                activeTab === 'connect'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Connect existing
-            </button>
-          </div>
-        </div>
-
-        {/* Search Tab Content */}
-        {activeTab === 'search' && (
-          <div className="space-y-12">
-            {/* Search Section */}
-            <div className="max-w-2xl mx-auto px-4">
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Enter your business name (e.g., 'mahi')"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base placeholder-slate-400 transition-colors"
-                    disabled={loading}
-                  />
-                </div>
-                <button
-                  onClick={searchDomainSuggestions}
-                  disabled={loading || !businessName.trim()}
-                  className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Checking availability...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4" />
-                      Search domains
-                    </>
-                  )}
-                </button>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-600 text-sm font-medium">Total Domains</p>
+                <p className="text-2xl font-bold text-slate-900">{domains.length}</p>
               </div>
-
-              {/* Error Display */}
-              {error && (
-                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Search hint */}
-              {!searchPerformed && !loading && (
-                <div className="text-center py-8">
-                  <Globe className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500">Enter your business name to see available domains</p>
-                  <p className="text-sm text-slate-400 mt-1">Real-time results from GoDaddy API</p>
-                </div>
-              )}
+              <div className="p-2.5 rounded-lg" style={{background: '#3b82f620'}}>
+                <Globe style={{color: '#3b82f6'}} size={20} />
+              </div>
             </div>
+          </div>
 
-            {/* Results Section */}
-            {suggestions.length > 0 && (
-              <div className="px-4">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-900">
-                      Available domains for "{businessName}"
-                    </h2>
-                    <p className="text-slate-600 text-sm mt-1">
-                      Found {suggestions.length} suggestions • Prices in INR
-                    </p>
-                  </div>
-                  <button
-                    onClick={searchDomainSuggestions}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh
-                  </button>
-                </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-600 text-sm font-medium">Live Sites</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {domains.filter(d => d.status === 'live').length}
+                </p>
+              </div>
+              <div className="p-2.5 bg-emerald-50 rounded-lg">
+                <CheckCircle className="text-emerald-600" size={20} />
+              </div>
+            </div>
+          </div>
 
-                <div className="grid gap-4">
-                  {suggestions.map((domain, index) => (
-                    <div
-                      key={domain.suggested_domain}
-                      className={`p-6 border rounded-lg transition-all hover:shadow-md ${
-                        domain.is_available 
-                          ? 'border-slate-200 hover:border-blue-300 bg-white' 
-                          : 'border-red-200 bg-red-50'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {domain.suggested_domain}
-                            </h3>
-                            
-                            {/* Availability Status */}
-                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                              domain.is_available 
-                                ? 'bg-emerald-50 text-emerald-700' 
-                                : 'bg-red-50 text-red-700'
-                            }`}>
-                              {getAvailabilityIcon(domain)}
-                              {domain.is_available ? 'Available' : 'Taken'}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-600 text-sm font-medium">Premium</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {domains.filter(d => d.type === 'purchased').length}
+                </p>
+              </div>
+              <div className="p-2.5 bg-amber-50 rounded-lg">
+                <Crown className="text-amber-600" size={20} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-600 text-sm font-medium">Pending</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {orders.filter(o => o.status !== 'completed').length}
+                </p>
+              </div>
+              <div className="p-2.5 bg-orange-50 rounded-lg">
+                <Clock className="text-orange-600" size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-fit">
+          {[
+            { key: 'domains', label: 'My Domains', count: domains.length },
+            { key: 'orders', label: 'Orders', count: orders.length },
+            { key: 'search', label: 'Search', count: null }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
+                activeTab === tab.key
+                  ? 'bg-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              style={activeTab === tab.key ? {color: '#3b82f6'} : {}}
+            >
+              {tab.label} {tab.count !== null && tab.count > 0 && `(${tab.count})`}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {activeTab === 'domains' && (
+          <>
+            {domains.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {domains.map((domain) => {
+                  const typeConfig = getTypeConfig(domain.type);
+                  const Icon = typeConfig.icon;
+                  
+                  return (
+                    <div key={domain.id} className={`bg-white rounded-xl shadow-sm border-2 ${typeConfig.accent} hover:shadow-md transition-all`}>
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2.5 rounded-lg ${typeConfig.color}`} style={domain.type === 'purchased' ? {color: '#3b82f6'} : {}}>
+                              <Icon size={18} />
                             </div>
-
-                            {/* Premium Badge */}
-                            {domain.is_premium && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                                <Crown className="w-3 h-3" />
-                                Premium
-                              </div>
-                            )}
-
-                            {/* Popular TLD Badge */}
-                            {domain.is_popular_tld && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                                <Star className="w-3 h-3" />
-                                Popular
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                            {/* Pricing */}
                             <div>
-                              <span className="font-medium text-slate-900">
-                                {domain.registration_price_display}
-                              </span>
-                              <span className="text-slate-500">/year</span>
-                              {domain.renewal_price_inr !== domain.registration_price_inr && (
-                                <span className="ml-1 text-xs text-slate-400">
-                                  (renews at {domain.renewal_price_display})
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Features */}
-                            {domain.hosting_included && (
-                              <div className="flex items-center gap-1">
-                                <Shield className="w-3 h-3" />
-                                Hosting included
-                              </div>
-                            )}
-
-                            {domain.ssl_included && (
-                              <div className="flex items-center gap-1">
-                                <Zap className="w-3 h-3" />
-                                SSL included
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {domain.setup_time}
-                            </div>
-
-                            {/* Recommendation Score */}
-                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getScoreColor(domain.recommendation_score)}`}>
-                              {getScoreIcon(domain.recommendation_score)}
-                              {getScoreLabel(domain.recommendation_score)}
+                              <h3 className="text-lg font-semibold text-slate-900">{domain.domain_name}</h3>
+                              <p className="text-slate-600 text-sm">{typeConfig.label}</p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          {domain.is_available ? (
-                            <button
-                              onClick={() => handleDomainSelect(domain)}
-                              className="px-6 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                        {/* Status and Technical Info Side by Side */}
+                        <div className="flex items-center justify-between mb-4">
+                          {getStatusBadge(domain.status)}
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                              <Shield className={`${domain.ssl_enabled ? 'text-emerald-500' : 'text-slate-400'}`} size={14} />
+                              <span className={`text-xs font-medium ${domain.ssl_enabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                SSL
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Server className={`${domain.hosting_active ? 'text-emerald-500' : 'text-slate-400'}`} size={14} />
+                              <span className={`text-xs font-medium ${domain.hosting_active ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                Host
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Wifi className={`${domain.dns_configured ? 'text-emerald-500' : 'text-slate-400'}`} size={14} />
+                              <span className={`text-xs font-medium ${domain.dns_configured ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                DNS
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Pricing */}
+                        {domain.type === 'purchased' && domain.purchase_price_inr && (
+                          <div className="bg-slate-50 p-3 rounded-lg mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Purchase Price</span>
+                              <span className="font-semibold text-slate-900">₹{domain.purchase_price_inr}</span>
+                            </div>
+                            {domain.renewal_price_inr && (
+                              <div className="flex justify-between text-sm mt-1">
+                                <span className="text-slate-600">Annual Renewal</span>
+                                <span className="font-medium text-slate-700">₹{domain.renewal_price_inr}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          {domain.status === 'live' && (
+                            <button 
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg hover:opacity-90 transition-all font-medium text-sm"
+                              style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)'}}
+                              onClick={() => window.open(domain.website_url, '_blank')}
                             >
-                              <Plus className="w-4 h-4" />
-                              Register
-                            </button>
-                          ) : (
-                            <button
-                              disabled
-                              className="px-6 py-2 bg-slate-100 text-slate-400 rounded-md font-medium cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                              <AlertCircle className="w-4 h-4" />
-                              Not available
+                              <ExternalLink size={14} />
+                              Visit Site
                             </button>
                           )}
+                          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all font-medium text-sm">
+                            <Eye size={14} />
+                            Preview
+                          </button>
+                          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all font-medium text-sm">
+                            <Settings size={14} />
+                            Settings
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                {/* Show powered by */}
-                <div className="text-center mt-8 text-sm text-slate-500">
-                  <div className="flex items-center justify-center gap-2">
-                    <span>Powered by</span>
-                    <strong>GoDaddy API</strong>
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                    <span>Real-time data</span>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-            )}
-
-            {/* No results */}
-            {searchPerformed && !loading && suggestions.length === 0 && !error && (
+            ) : (
               <div className="text-center py-12">
-                <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600">No domain suggestions found</p>
-                <p className="text-sm text-slate-400 mt-1">Try a different business name</p>
+                <div className="p-4 rounded-full w-16 h-16 mx-auto mb-4" style={{background: '#3b82f620'}}>
+                  <Globe style={{color: '#3b82f6'}} className="w-8 h-8 mx-auto mt-2" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No domains found</h3>
+                <p className="text-slate-600 mb-4 max-w-md mx-auto">Get started by searching for your first domain name.</p>
+                <button 
+                  onClick={() => setActiveTab('search')}
+                  className="inline-flex items-center gap-2 text-white px-5 py-2.5 rounded-lg hover:opacity-90 transition-all font-medium"
+                  style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)'}}
+                >
+                  <Search size={16} />
+                  Search Domains
+                </button>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* Connect Tab Content */}
-        {activeTab === 'connect' && (
-          <div className="max-w-2xl mx-auto px-4">
-            <div className="text-center mb-8">
-              <ExternalLink className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h2 className="text-2xl font-semibold text-slate-900 mb-2">Connect your existing domain</h2>
-              <p className="text-slate-600">
-                Already own a domain? Connect it to get started with your website.
-              </p>
-            </div>
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <>
+            {orders.length > 0 ? (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-blue-50 rounded-lg">
+                          <Globe style={{color: '#3b82f6'}} size={18} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{order.domain_name}</h3>
+                          <p className="text-sm text-slate-600">Order #{order.order_number}</p>
+                          <p className="text-sm font-semibold text-slate-900">₹{order.total_amount_inr}</p>
+                        </div>
+                      </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your domain name
-                </label>
+                      <div className="text-right">
+                        <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium ${
+                          order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                          order.status === 'failed' ? 'bg-rose-100 text-rose-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {order.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <p className="text-xs text-slate-600 mt-1">{order.current_step.replace('_', ' ')}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-sm text-slate-600 mb-2">
+                        <span>Progress</span>
+                        <span>{order.completion_percentage}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${order.completion_percentage}%`,
+                            background: 'linear-gradient(to right, #3b82f6, #2563eb)'
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {order.error_message && (
+                      <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                        <p className="text-sm text-rose-700">{order.error_message}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="p-4 bg-orange-50 rounded-full w-16 h-16 mx-auto mb-4">
+                  <Clock className="w-8 h-8 text-orange-600 mx-auto mt-2" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No orders yet</h3>
+                <p className="text-slate-600 max-w-md mx-auto">Your domain purchase history will appear here.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Search Tab */}
+        {activeTab === 'search' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold mb-2" style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
+                  Search Domains
+                </h2>
+                <p className="text-slate-600 max-w-lg mx-auto">
+                  Find and register the perfect domain name for your business
+                </p>
+              </div>
+              
+              <div className="flex gap-3 max-w-lg mx-auto">
                 <input
                   type="text"
-                  placeholder="yourdomain.com"
-                  value={customDomain}
-                  onChange={(e) => setCustomDomain(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Enter your business name..."
+                  className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium placeholder-slate-400"
+                  onKeyPress={(e) => e.key === 'Enter' && searchDomains()}
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Current registrar (optional)
-                </label>
-                <select
-                  value={registrar}
-                  onChange={(e) => setRegistrar(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select your registrar</option>
-                  <option value="godaddy">GoDaddy</option>
-                  <option value="namecheap">Namecheap</option>
-                  <option value="cloudflare">Cloudflare</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <button
-                onClick={() => alert('Domain connection feature coming soon!')}
-                disabled={!customDomain.trim() || customDomainLoading}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {customDomainLoading ? 'Connecting...' : 'Connect domain'}
-              </button>
-            </div>
-
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <h3 className="font-medium text-blue-900 mb-2">What happens next?</h3>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• We'll verify domain ownership via DNS</li>
-                <li>• Update nameservers to Vision hosting</li>
-                <li>• Deploy selected template automatically</li>
-                <li>• Your website will be live in 24-48 hours</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Purchase Modal */}
-        {showPurchaseModal && selectedDomain && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                Register {selectedDomain.suggested_domain}
-              </h3>
-              
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Registration (1 year)</span>
-                  <span className="font-medium">{selectedDomain.registration_price_display}</span>
-                </div>
-                
-                {selectedDomain.hosting_included && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Hosting included</span>
-                    <span className="text-emerald-600">Free</span>
-                  </div>
-                )}
-                
-                {selectedDomain.ssl_included && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">SSL certificate</span>
-                    <span className="text-emerald-600">Free</span>
-                  </div>
-                )}
-                
-                <div className="border-t pt-4">
-                  <div className="flex justify-between items-center font-medium">
-                    <span>Total</span>
-                    <span>{selectedDomain.registration_price_display}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
                 <button
-                  onClick={() => setShowPurchaseModal(false)}
-                  className="flex-1 px-4 py-2 text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+                  onClick={searchDomains}
+                  disabled={searchLoading}
+                  className="px-6 py-3 text-white rounded-lg hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-2 font-medium"
+                  style={{background: 'linear-gradient(to right, #3b82f6, #2563eb)'}}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => alert('Purchase flow coming soon!')}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Continue
+                  {searchLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  ) : (
+                    <Search size={16} />
+                  )}
+                  Search
                 </button>
               </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg max-w-lg mx-auto">
+                  <p className="text-sm text-rose-700 text-center">{error}</p>
+                </div>
+              )}
             </div>
+
+            {/* Search Results */}
+            {suggestions.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Available Domains</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {suggestions.map((suggestion, index) => (
+                    <div 
+                      key={index} 
+                      className={`border rounded-xl p-4 transition-all ${
+                        suggestion.is_available 
+                          ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-300' 
+                          : 'border-slate-200 bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-slate-900">{suggestion.suggested_domain}</h4>
+                        <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                          suggestion.is_available 
+                            ? 'bg-emerald-100 text-emerald-700' 
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {suggestion.is_available ? 'Available' : 'Taken'}
+                        </span>
+                      </div>
+                      
+                      {suggestion.is_available && (
+                        <>
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm text-slate-600">.{suggestion.tld}</span>
+                            <span className="text-lg font-bold text-slate-900">₹{suggestion.price_inr}</span>
+                          </div>
+                          
+                          <button className="w-full bg-emerald-600 text-white py-2.5 px-4 rounded-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 font-medium text-sm">
+                            <Plus size={14} />
+                            Purchase
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
