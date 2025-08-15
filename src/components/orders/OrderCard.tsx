@@ -1,7 +1,8 @@
-// OrderCard.tsx - Card component for displaying order in the list
+// EnhancedOrderCard.tsx - OrderCard with priority indicators
 import React from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, Clock, AlertCircle, Package } from 'lucide-react';
 import { Order, getStatusColor, getStatusLabel } from './types';
+import { getStatusPriority, OrderStatus } from './OrderUtils';
 
 interface OrderCardProps {
   order: Order;
@@ -10,7 +11,29 @@ interface OrderCardProps {
   onGenerateLabel: (orderId: string) => void;
   onMarkAsShipped: (orderId: string) => void;
   isSelected: boolean;
+  showPriorityIndicator?: boolean;
 }
+
+const getPriorityIcon = (status: OrderStatus) => {
+  switch (status) {
+    case OrderStatus.PENDING:
+      return <AlertCircle className="w-4 h-4 text-red-500" />;
+    case OrderStatus.PROCESSING:
+      return <Clock className="w-4 h-4 text-orange-500" />;
+    case OrderStatus.SHIPPED:
+      return <Package className="w-4 h-4 text-blue-500" />;
+    default:
+      return null;
+  }
+};
+
+const getPriorityBorder = (status: OrderStatus): string => {
+  const priority = getStatusPriority(status);
+  if (priority === 1) return 'border-l-4 border-red-500'; // High priority
+  if (priority === 2) return 'border-l-4 border-orange-500'; // Medium priority
+  if (priority === 3) return 'border-l-4 border-blue-500'; // Normal priority
+  return 'border-l-4 border-gray-300'; // Low priority
+};
 
 const OrderCard: React.FC<OrderCardProps> = ({
   order,
@@ -18,29 +41,45 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onUpdateStatus,
   onGenerateLabel,
   onMarkAsShipped,
-  isSelected
+  isSelected,
+  showPriorityIndicator = true
 }) => {
+  const priorityClass = showPriorityIndicator ? getPriorityBorder(order.status as OrderStatus) : '';
+  const priorityIcon = showPriorityIndicator ? getPriorityIcon(order.status as OrderStatus) : null;
+  
   return (
     <div 
-      className={`bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow ${
-        isSelected ? 'ring-2 ring-blue-500' : ''
+      className={`bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 ${priorityClass} ${
+        isSelected ? 'ring-2 ring-blue-500 transform scale-[1.02]' : ''
       }`}
       onClick={onSelect}
     >
       <div className="p-4">
         <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center">
+          <div className="flex items-center text-black">
+            {priorityIcon && (
+              <div className="mr-2 flex items-center">
+                {priorityIcon}
+              </div>
+            )}
             <span className="font-bold text-lg mr-2">{order.id}</span>
             <span className={`${getStatusColor(order.status)} text-white text-xs py-1 px-2 rounded-full`}>
               {getStatusLabel(order.status)}
             </span>
           </div>
-          <span className="text-gray-500 text-sm">
-            {new Date(order.createdAt).toLocaleDateString()}
-          </span>
+          <div className="text-right">
+            <span className="text-gray-500 text-sm">
+              {new Date(order.createdAt).toLocaleDateString()}
+            </span>
+            {showPriorityIndicator && (
+              <div className="text-xs text-gray-400 mt-1">
+                Priority: {getStatusPriority(order.status as OrderStatus)}
+              </div>
+            )}
+          </div>
         </div>
         
-        <div className="flex justify-between items-center mb-3">
+        <div className="flex justify-between items-center mb-3 text-black">
           <div>
             <p className="font-medium">{order.customer.name}</p>
             <p className="text-gray-500 text-sm">{order.customer.city}, {order.customer.state}</p>
@@ -58,7 +97,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 key={product.id}
                 src={product.imageUrl} 
                 alt={product.name} 
-                className="h-8 w-8 rounded-full border border-white"
+                className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
               />
             ))}
           </div>
@@ -66,7 +105,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
           <div className="flex space-x-2">
             {order.status === 'pending' && (
               <button 
-                className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onUpdateStatus(order.id, 'processing');
@@ -78,7 +117,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             
             {(order.status === 'pending' || order.status === 'processing') && (
               <button 
-                className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
+                className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerateLabel(order.id);
@@ -91,7 +130,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             
             {order.labelGenerated && order.status === 'processing' && (
               <button 
-                className="text-sm bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
+                className="text-sm bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onMarkAsShipped(order.id);
@@ -103,7 +142,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             
             {order.status === 'shipped' && (
               <button 
-                className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onUpdateStatus(order.id, 'delivered');

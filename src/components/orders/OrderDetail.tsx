@@ -57,7 +57,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-bold">Order {order.id}</h3>
+            <h3 className="text-lg font-bold text-black">Order {order.id}</h3>
             <p className="text-gray-500 text-sm">
               Created on {new Date(order.createdAt).toLocaleString()}
             </p>
@@ -92,8 +92,8 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
         )}
         
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Customer</p>
+          <div className='text-black'>
+            <p className="text-sm font-medium text-green-500 mb-1">Customer</p>
             <p className="font-bold">{order.customer.name}</p>
             <p>{order.customer.phone}</p>
             <div className="mt-2">
@@ -105,19 +105,19 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
           
           <div>
             <p className="text-sm font-medium text-gray-500 mb-1">Order Summary</p>
-            <div className="flex justify-between mt-2">
+            <div className="flex justify-between mt-2 text-black">
               <span>Subtotal</span>
-              <span>₹{(order.total - order.tax - order.shippingCost).toFixed(2)}</span>
+              <span>₹{(order.total).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between mt-1 text-black">
               <span>Tax</span>
               <span>₹{order.tax?.toFixed(2) || '0.00'}</span>
             </div>
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between mt-1 text-black">
               <span>Shipping</span>
               <span>₹{order.shippingCost?.toFixed(2) || '0.00'}</span>
             </div>
-            <div className="flex justify-between mt-2 pt-2 border-t font-bold">
+            <div className="flex justify-between mt-2 pt-2 border-t font-bold text-black">
               <span>Total</span>
               <span>₹{order.total.toFixed(2)}</span>
             </div>
@@ -127,7 +127,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       
       {/* Product List */}
       <div>
-        <h4 className="font-bold mb-3">Order Items</h4>
+        <h4 className="font-bold mb-3 text-gray-500">Order Items</h4>
         <div className="bg-white rounded-lg border overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -138,14 +138,14 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-200 text-black">
               {order.products.map(product => (
                 <tr key={product.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <img 
                         src={product.imageUrl} 
-                        alt={product.name} 
+                        alt={product.name}
                         className="h-10 w-10 rounded-md mr-3" 
                       />
                       <span className="font-medium">{product.name}</span>
@@ -169,7 +169,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       
       {/* Order Timeline */}
       <div className="mt-8">
-        <h4 className="font-bold mb-3">Order Timeline</h4>
+        <h4 className="font-bold mb-3 text-gray-500">Order Timeline</h4>
         <div className="space-y-4">
           <div className="flex">
             <div className="mr-4 relative">

@@ -122,7 +122,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [processingType, setProcessingType] = useState<'raw' | 'enhanced'>('enhanced');
-
+  const [businessCategory, setBusinessCategory] = useState<string>('');
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [deletedImageUrls, setDeletedImageUrls] = useState<string[]>([]);
@@ -135,6 +135,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
 
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // **ADDED: Missing state for vendor info and category-specific details**
+  const [currentVendorInfo, setCurrentVendorInfo] = useState<any>({
+    business_category: 'General'
+  });
+
+  // **ADDED: Clothing details state**
+  const [clothingDetails, setClothingDetails] = useState({
+    brand: '',
+    cloth_type: 'Cotton',
+    clothing_category: 'Shirt',
+    gender: 'Unisex',
+    sizes: [] as string[],
+    colors: [] as string[],
+    care_instructions: ''
+  });
+
+  // **ADDED: Food details state**
+  const [foodDetails, setFoodDetails] = useState({
+    cuisine_type: 'Indian',
+    food_category: 'Main Course',
+    dietary_type: [] as string[],
+    spice_level: 'Medium',
+    preparation_time: 30,
+    ingredients: [] as string[]
+  });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,6 +169,61 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
     'Toys & Games', 'Books', 'Food & Grocery', 'Health', 'Other'
   ];
 
+  // **ADDED: Missing option arrays**
+  const clothTypes = ['Cotton', 'Polyester', 'Silk', 'Wool', 'Linen', 'Denim', 'Leather', 'Synthetic', 'Blend'];
+  const clothingCategories = ['Shirt', 'T-Shirt', 'Pants', 'Jeans', 'Dress', 'Skirt', 'Jacket', 'Sweater', 'Shorts', 'Underwear', 'Socks', 'Shoes', 'Accessories'];
+  const genderOptions = ['Men', 'Women', 'Unisex', 'Kids'];
+  const clothingSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40', '42'];
+
+  const cuisineTypes = ['Indian', 'Chinese', 'Italian', 'Mexican', 'Thai', 'Japanese', 'American', 'Mediterranean', 'Continental', 'Other'];
+  const foodCategories = ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Snack', 'Salad', 'Soup', 'Bread', 'Rice', 'Noodles'];
+  const dietaryTypes = ['Vegetarian', 'Vegan', 'Non-Vegetarian', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Low-Carb', 'High-Protein'];
+  const spiceLevels = ['Mild', 'Medium', 'Hot', 'Extra Hot', 'No Spice'];
+
+  // **ADDED: Missing helper functions**
+  const toggleSize = (size: string) => {
+    setClothingDetails(prev => ({
+      ...prev,
+      sizes: prev.sizes.includes(size) 
+        ? prev.sizes.filter(s => s !== size)
+        : [...prev.sizes, size]
+    }));
+  };
+
+  const toggleColor = (color: string) => {
+    setClothingDetails(prev => ({
+      ...prev,
+      colors: prev.colors.includes(color) 
+        ? prev.colors.filter(c => c !== color)
+        : [...prev.colors, color]
+    }));
+  };
+
+  const toggleDietaryType = (type: string) => {
+    setFoodDetails(prev => ({
+      ...prev,
+      dietary_type: prev.dietary_type.includes(type) 
+        ? prev.dietary_type.filter(t => t !== type)
+        : [...prev.dietary_type, type]
+    }));
+  };
+
+  const addIngredient = (ingredient: string) => {
+    if (ingredient.trim() && !foodDetails.ingredients.includes(ingredient.trim())) {
+      setFoodDetails(prev => ({
+        ...prev,
+        ingredients: [...prev.ingredients, ingredient.trim()]
+      }));
+    }
+  };
+
+  const removeIngredient = (index: number) => {
+    setFoodDetails(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, i) => i !== index)
+    }));
+  };
+
   // Helper function to check if any processing is happening
   const isAnyProcessing = () => {
     return isSubmitting || uploading || aiExtracting;
@@ -150,6 +231,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
 
   // Initialize form with existing product data
   useEffect(() => {
+    const categoryFromLocalStorage = localStorage.getItem('category');
+    const vendorInfo = localStorage.getItem('vendor_info');
+    setBusinessCategory(categoryFromLocalStorage || '');
+    
+    // **ADDED: Set vendor info based on localStorage or default**
+    setCurrentVendorInfo({
+      business_category: categoryFromLocalStorage || 'General'
+    });
+    
     if (product && !isAdding) {
       setName(product.name);
       setDescription(product.description);
@@ -189,6 +279,26 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
       setImageFiles([]);
       setDeletedImageUrls([]);
       setAiExtractedFields([]);
+      
+      // **ADDED: Reset category-specific details**
+      setClothingDetails({
+        brand: '',
+        cloth_type: 'Cotton',
+        clothing_category: 'Shirt',
+        gender: 'Unisex',
+        sizes: [],
+        colors: [],
+        care_instructions: ''
+      });
+      
+      setFoodDetails({
+        cuisine_type: 'Indian',
+        food_category: 'Main Course',
+        dietary_type: [],
+        spice_level: 'Medium',
+        preparation_time: 30,
+        ingredients: []
+      });
     }
     
     setIsSubmitting(false);
@@ -336,6 +446,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
         }
       });
     }
+
+    // **ADDED: Category-specific validation**
+    if (currentVendorInfo.business_category === 'Clothing') {
+      if (!clothingDetails.brand.trim()) newErrors.brand = 'Brand is required for clothing';
+      if (clothingDetails.sizes.length === 0) newErrors.sizes = 'At least one size must be selected';
+      if (clothingDetails.colors.length === 0) newErrors.colors = 'At least one color must be selected';
+    }
+
+    if (currentVendorInfo.business_category === 'Food') {
+      if (foodDetails.dietary_type.length === 0) newErrors.dietary_type = 'At least one dietary type must be selected';
+      if (foodDetails.ingredients.length === 0) newErrors.ingredients = 'At least one ingredient must be added';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -456,8 +578,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
         price: Number(basePrice),
         image_urls: uploadedImageUrls,
         pricing_tiers: formattedPricingTiers,
-        processing_type: processingType, 
+        processing_type: processingType,
       };
+
+      // **ADDED: Include category-specific details in product**
+      if (currentVendorInfo.business_category === 'Clothing') {
+        newProduct.clothing_details = clothingDetails;
+      }
+
+      if (currentVendorInfo.business_category === 'Food') {
+        newProduct.food_details = foodDetails;
+      }
 
       if (!isAdding && product) {
         newProduct.id = product.id;
@@ -549,7 +680,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
   };
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-lg">
+    <div className="p-6 bg-white rounded-lg shadow-lg max-w-6xl mx-auto">
       {/* Header with AI Success Indicator */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
@@ -906,6 +1037,293 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSave, onCancel, is
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Category-Specific Forms */}
+        <div className="space-y-6">
+          {/* **FIXED: Clothing Details Form** */}
+          {currentVendorInfo.business_category === 'Clothing' && (
+            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                <span className="mr-2">👕</span>
+                Clothing Details
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={clothingDetails.brand}
+                    onChange={(e) => setClothingDetails(prev => ({ ...prev, brand: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                      errors.brand ? 'border-red-500' : 'border-gray-300'
+                    } ${isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                    placeholder="e.g. Nike, Adidas, H&M"
+                  />
+                  {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cloth Type</label>
+                  <select
+                    value={clothingDetails.cloth_type}
+                    onChange={(e) => setClothingDetails(prev => ({ ...prev, cloth_type: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {clothTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Clothing Category</label>
+                  <select
+                    value={clothingDetails.clothing_category}
+                    onChange={(e) => setClothingDetails(prev => ({ ...prev, clothing_category: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {clothingCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                  <select
+                    value={clothingDetails.gender}
+                    onChange={(e) => setClothingDetails(prev => ({ ...prev, gender: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {genderOptions.map(gender => (
+                      <option key={gender} value={gender}>{gender}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Available Sizes <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                  {clothingSizes.map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => !isAnyProcessing() && toggleSize(size)}
+                      disabled={isAnyProcessing()}
+                      className={`px-3 py-2 border rounded-lg text-sm font-medium transition-all ${
+                        clothingDetails.sizes.includes(size)
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      } ${isAnyProcessing() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                {errors.sizes && <p className="text-red-500 text-sm mt-2">{errors.sizes}</p>}
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Available Colors <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                  {['Red', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Purple', 'Pink', 'Orange', 'Gray', 'Brown', 'Navy'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => !isAnyProcessing() && toggleColor(color)}
+                      disabled={isAnyProcessing()}
+                      className={`px-3 py-2 border rounded-lg text-sm font-medium transition-all ${
+                        clothingDetails.colors.includes(color)
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      } ${isAnyProcessing() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+                {errors.colors && <p className="text-red-500 text-sm mt-2">{errors.colors}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Care Instructions</label>
+                <textarea
+                  value={clothingDetails.care_instructions}
+                  onChange={(e) => setClothingDetails(prev => ({ ...prev, care_instructions: e.target.value }))}
+                  disabled={isAnyProcessing()}
+                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none ${
+                    isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
+                  rows={3}
+                  placeholder="e.g. Machine wash cold, tumble dry low, do not bleach"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* **FIXED: Food Details Form** */}
+          {currentVendorInfo.business_category === 'Food' && (
+            <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+              <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
+                <span className="mr-2">🍽️</span>
+                Food Details
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cuisine Type</label>
+                  <select
+                    value={foodDetails.cuisine_type}
+                    onChange={(e) => setFoodDetails(prev => ({ ...prev, cuisine_type: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {cuisineTypes.map(cuisine => (
+                      <option key={cuisine} value={cuisine}>{cuisine}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Food Category</label>
+                  <select
+                    value={foodDetails.food_category}
+                    onChange={(e) => setFoodDetails(prev => ({ ...prev, food_category: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {foodCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Dietary Types <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {dietaryTypes.map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => !isAnyProcessing() && toggleDietaryType(type)}
+                      disabled={isAnyProcessing()}
+                      className={`px-3 py-2 border rounded-lg text-sm font-medium transition-all ${
+                        foodDetails.dietary_type.includes(type)
+                          ? 'bg-green-500 text-white border-green-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      } ${isAnyProcessing() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+                {errors.dietary_type && <p className="text-red-500 text-sm mt-2">{errors.dietary_type}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Spice Level</label>
+                  <select
+                    value={foodDetails.spice_level}
+                    onChange={(e) => setFoodDetails(prev => ({ ...prev, spice_level: e.target.value }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {spiceLevels.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Preparation Time (minutes)</label>
+                  <input
+                    type="number"
+                    value={foodDetails.preparation_time}
+                    onChange={(e) => setFoodDetails(prev => ({ ...prev, preparation_time: Number(e.target.value) }))}
+                    disabled={isAnyProcessing()}
+                    className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
+                      isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                    min="1"
+                    placeholder="30"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Ingredients <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {foodDetails.ingredients.map((ingredient, index) => (
+                    <span
+                      key={index}
+                      className="bg-green-100 text-green-800 px-3 py-1 rounded-lg text-sm flex items-center"
+                    >
+                      {ingredient}
+                      <button
+                        type="button"
+                        onClick={() => !isAnyProcessing() && removeIngredient(index)}
+                        disabled={isAnyProcessing()}
+                        className={`ml-2 text-green-600 hover:text-green-800 ${
+                          isAnyProcessing() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Add ingredient and press Enter"
+                  disabled={isAnyProcessing()}
+                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
+                    isAnyProcessing() ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !isAnyProcessing()) {
+                      e.preventDefault();
+                      addIngredient(e.currentTarget.value);
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+                {errors.ingredients && <p className="text-red-500 text-sm mt-2">{errors.ingredients}</p>}
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Pricing Tiers Section */}

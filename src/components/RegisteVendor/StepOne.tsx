@@ -11,8 +11,8 @@ interface StepOneProps {
 
 const StepOne: React.FC<StepOneProps> = ({ formData, errors, next, handleChange }) => {
   return (
-    <div style={{paddingTop:"0px"}} className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
-      
+    <div style={{ paddingTop: "0px" }} className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
+
 
       <div className="space-y-1">
         <FloatingInput
@@ -35,6 +35,8 @@ const StepOne: React.FC<StepOneProps> = ({ formData, errors, next, handleChange 
             <option value="Retail">Retail</option>
             <option value="Wholesale">Wholesale</option>
             <option value="Services">Services</option>
+            <option value="Clothing">Clothing</option>
+            <option value="Food">Food</option>
           </select>
           <label
             htmlFor="business_category"
@@ -45,7 +47,7 @@ const StepOne: React.FC<StepOneProps> = ({ formData, errors, next, handleChange 
           </label>
           {errors.business_category && <p className="text-red-500 text-xs mt-1">{errors.business_category}</p>}
         </div>
-        
+
         <div className="relative w-full mt-6">
           <select
             name="country"
@@ -92,7 +94,7 @@ const StepOne: React.FC<StepOneProps> = ({ formData, errors, next, handleChange 
           error={errors.city}
         />
 
-        
+
         <FloatingInput
           label={formData.country === "Canada" ? "Province" : "State"}
           name="state"

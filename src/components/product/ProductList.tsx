@@ -26,7 +26,7 @@ const ProductList: React.FC<ProductListProps> = ({
   isSubmitting = false
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+    <div className="bg-white rounded-lg shadow-md overflow-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -88,15 +88,17 @@ const ProductList: React.FC<ProductListProps> = ({
                 <div className="font-medium text-gray-900">{product.name}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className="px-2 py-1 text-xs rounded-full bg-gray-100">{product.category}</span>
+                <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">{product.category}</span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`${product.stock > 100 ? 'text-green-600' : product.stock > 20 ? 'text-yellow-600' : 'text-red-600'}`}>
+                <span className={`font-medium ${product.stock > 100 ? 'text-green-600' : product.stock > 20 ? 'text-yellow-600' : 'text-red-600'}`}>
                   {product.stock}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                ${product.price?.toFixed(2)}
+                <span className="px-2 py-1 text-xs rounded-full bg-black text-white font-medium">
+                  ${product.price?.toFixed(2)}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex space-x-4" onClick={(e) => e.stopPropagation()}>

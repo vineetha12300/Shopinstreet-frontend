@@ -10,12 +10,12 @@ interface StepThreeProps {
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 }
 
-const StepThree: React.FC<StepThreeProps> = ({ formData, setFormData, errors, prev, submit,handleChange }) => {
-  
+const StepThree: React.FC<StepThreeProps> = ({ formData, setFormData, errors, prev, submit, handleChange }) => {
+
 
   return (
-    <div style={{paddingTop:"0px"}} className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
-      
+    <div style={{ paddingTop: "0px" }} className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
+
       <div className="space-y-1">
         {/* Verification Type */}
         <div className="relative w-full mt-6">
@@ -23,12 +23,12 @@ const StepThree: React.FC<StepThreeProps> = ({ formData, setFormData, errors, pr
             name="verification_type"
             value={formData.verification_type}
             onChange={handleChange}
-            className={`peer w-full border-b-2 bg-transparent pt-6 pb-2 text-sm focus:outline-none ${
-              errors.verification_type ? "border-red-500" : "border-gray-300 focus:border-[#1DA1F2]"
-            }`}
+            className={`peer w-full border-b-2 bg-transparent pt-6 pb-2 text-sm focus:outline-none ${errors.verification_type ? "border-red-500" : "border-gray-300 focus:border-[#1DA1F2]"
+              }`}
           >
             <option value="" disabled hidden></option>
             <option value="GSTIN">GSTIN</option>
+            <option value="FSSAI">FSSAI</option>
             <option value="Business License">Business License</option>
             <option value="Other">Other</option>
           </select>
