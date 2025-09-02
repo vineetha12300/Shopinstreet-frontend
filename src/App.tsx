@@ -1,17 +1,18 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import VendorLogin from "./components/VendorLogin/VendorLogin";
 import RegisterVendor from "./components/RegisteVendor/RegisterVendor";
 import UnifiedVendorDashboard from "./components/pages/VendorDashboard";
 import DomainPage from "./components/domain/DomainPage";
-
 import VendorOrdersDashboard from "./components/orders/VendorOrdersDashboard";
 import MainLayout from "./components/layout/MainLayout";
 import ToastContainer from './components/ReUsebleComponents/Toast';
 import VendorStorePage from "./components/pages/VendorStorePage";
+import CashierDashboard from "./components/cashier/CashierDashboard"; // NEW
 import { JSX } from "react";
 import AnalyticsDashboard from "./components/analytics/AnalyticsDashboard";
 import SettingsPage from "./components/settings/SettingsPage";
-
+import SalesHistory from "./components/cashier/SalesHistory";
 // Authentication guard component
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
   const token = localStorage.getItem("token");
@@ -21,6 +22,18 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+// Cashier wrapper to pass vendor ID
+const CashierWrapper = () => {
+  // Get vendor ID from localStorage or API
+  const vendorId = parseInt(localStorage.getItem("vendor_id") || "1");
+  console.log("Vendor ID:", vendorId)
+  return <CashierDashboard vendorId={vendorId} />;
+};
+
+const SalesHistoryWrapper = () => {
+  const vendorId = parseInt(localStorage.getItem("vendor_id") || "1");
+  return <SalesHistory vendorId={vendorId} />;
+};
 function App() {
   return (
     <BrowserRouter>
@@ -43,6 +56,8 @@ function App() {
           <Route path="orders" element={<VendorOrdersDashboard />} />
           <Route path="domains" element={<DomainPage />} />
           <Route path="store" element={<VendorStorePage />} />
+          <Route path="cashier" element={<CashierWrapper />} /> {/* NEW CASHIER ROUTE */}
+          <Route path="sales-history" element={<SalesHistoryWrapper />} /> {/* ✅ MOVED INSIDE */}
           
           {/* Add placeholder routes for future features */}
           <Route path="analytics" element={<AnalyticsDashboard />} />

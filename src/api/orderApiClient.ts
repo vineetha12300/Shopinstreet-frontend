@@ -55,17 +55,25 @@ export class OrderApiClient {
 
   private setupInterceptors(): void {
     // Request interceptor
-    this.axiosInstance.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        config.headers['X-Request-ID'] = this.generateRequestId();
-        return config;
-      },
-      (error) => Promise.reject(this.handleError(error))
-    );
+    // In setupInterceptors method, update the request interceptor:
+this.axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    console.log('🔍 DEBUG: Token from localStorage:', token ? 'Found' : 'Not found');
+    console.log('🔍 DEBUG: Token length:', token?.length || 0);
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('✅ DEBUG: Authorization header set');
+    } else {
+      console.log('❌ DEBUG: No token, no Authorization header');
+    }
+    
+    config.headers['X-Request-ID'] = this.generateRequestId();
+    return config;
+  },
+  (error) => Promise.reject(this.handleError(error))
+);
 
     // Response interceptor
     this.axiosInstance.interceptors.response.use(
