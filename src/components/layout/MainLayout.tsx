@@ -27,7 +27,7 @@ const MainLayout: React.FC = () => {
     { path: '/dashboard', name: 'Products', icon: <Package size={18} /> },
     { path: '/orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { path: '/cashier', name: 'Cashier', icon: <CreditCard size={18} /> }, 
-    { path: '/sales-history', name: 'Sales History', icon: <BarChart size={18} /> }, // NEW LINE// NEW: Cashier menu item
+    { path: '/sales-history', name: 'Sales History', icon: <BarChart size={18} /> },
     { path: '/domains', name: 'Domains', icon: <Globe size={18} /> },
     { path: '/analytics', name: 'Analytics', icon: <BarChart size={18} /> },
     { path: '/shipping', name: 'Shipping', icon: <Truck size={18} /> },
@@ -45,21 +45,40 @@ const MainLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar - Narrower than before */}
-      <div className={`${collapsed ? 'w-16' : 'w-52'} bg-black text-white flex flex-col transition-all duration-300`}>
-        {/* Toggle Button */}
-        <button 
-          className="absolute top-4 right-4 text-white p-1 rounded-full hover:bg-gray-800 z-10"
-          onClick={toggleSidebar}
-        >
-          {collapsed ? <Menu size={18} /> : <X size={18} />}
-        </button>
-        
-        {/* Logo */}
-        <div className={`p-4 ${collapsed ? 'flex justify-center' : ''}`}>
-          <h1 className={`text-xl font-bold ${collapsed ? 'hidden' : 'block'}`}>ShopInStreet</h1>
-          <h1 className={`text-xl font-bold ${collapsed ? 'block' : 'hidden'}`}>SIS</h1>
-          <p className={`text-sm text-gray-400 ${collapsed ? 'hidden' : 'block'}`}>Vendor Portal</p>
-        </div>
+      <div className={`${collapsed ? 'w-16' : 'w-52'} bg-black text-white flex flex-col transition-all duration-300 relative`}>
+        {/* Toggle Button - Position changes based on collapsed state */}
+        {collapsed ? (
+          /* When collapsed: Button at top center */
+          <div className="flex justify-center p-2">
+            <button 
+              className="text-white p-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors"
+              onClick={toggleSidebar}
+            >
+              <Menu size={18} />
+            </button>
+          </div>
+        ) : (
+          /* When expanded: Button in header with logo */
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold">ShopInStreet</h1>
+              <p className="text-sm text-gray-400">Vendor Portal</p>
+            </div>
+            <button 
+              className="text-white p-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors"
+              onClick={toggleSidebar}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* Logo - Only show SIS when collapsed */}
+        {collapsed && (
+          <div className="flex justify-center px-4 pb-4">
+            <h1 className="text-xl font-bold">SIS</h1>
+          </div>
+        )}
 
         {/* Nav Menu */}
         <nav className="flex-1 px-2 space-y-1 mt-6">
@@ -81,30 +100,20 @@ const MainLayout: React.FC = () => {
           ))}
         </nav>
 
-        {/* User Profile */}
-        <div className="p-3 border-t border-gray-800">
-          <div className={`flex items-center mb-2 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
-              VS
-            </div>
-            <div className={`ml-2 ${collapsed ? 'hidden' : 'block'}`}>
-              <p className="text-xs font-medium">Vendor Shop</p>
-              <p className="text-xs text-gray-500">Admin</p>
-            </div>
-          </div>
-          
-          <button 
+        {/* Logout button */}
+        <div className="p-2">
+          <button
             onClick={handleLogout}
-            className={`flex items-center text-gray-400 hover:text-white w-full px-3 py-2 rounded-lg hover:bg-gray-800 ${collapsed ? 'justify-center' : ''}`}
+            className="flex items-center px-3 py-2 w-full text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
           >
-            <LogOut size={16} className={collapsed ? '' : 'mr-2'} />
+            <LogOut size={18} className="mr-2" />
             <span className={collapsed ? 'hidden' : 'block'}>Logout</span>
           </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
         <Outlet />
       </div>
     </div>
