@@ -10,7 +10,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  CreditCard // NEW: Cashier icon
 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
@@ -25,7 +26,8 @@ const MainLayout: React.FC = () => {
     { path: '/store', name: 'Store', icon: <ShoppingBag size={18} /> },
     { path: '/dashboard', name: 'Products', icon: <Package size={18} /> },
     { path: '/orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
-    
+    { path: '/cashier', name: 'Cashier', icon: <CreditCard size={18} /> }, 
+    { path: '/sales-history', name: 'Sales History', icon: <BarChart size={18} /> }, // NEW LINE// NEW: Cashier menu item
     { path: '/domains', name: 'Domains', icon: <Globe size={18} /> },
     { path: '/analytics', name: 'Analytics', icon: <BarChart size={18} /> },
     { path: '/shipping', name: 'Shipping', icon: <Truck size={18} /> },
@@ -54,8 +56,8 @@ const MainLayout: React.FC = () => {
         
         {/* Logo */}
         <div className={`p-4 ${collapsed ? 'flex justify-center' : ''}`}>
-          <h1 className={`text-xl font-bold ${collapsed ? 'hidden' : 'block'}`}>LoveToLocal</h1>
-          <h1 className={`text-xl font-bold ${collapsed ? 'block' : 'hidden'}`}>L2L</h1>
+          <h1 className={`text-xl font-bold ${collapsed ? 'hidden' : 'block'}`}>ShopInStreet</h1>
+          <h1 className={`text-xl font-bold ${collapsed ? 'block' : 'hidden'}`}>SIS</h1>
           <p className={`text-sm text-gray-400 ${collapsed ? 'hidden' : 'block'}`}>Vendor Portal</p>
         </div>
 
