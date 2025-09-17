@@ -74,7 +74,8 @@ export const usePayment = (vendorId: number) => {
         tax_enabled: taxEnabled,
         discount_amount: discountAmount,
         subtotal: subtotal,
-        total_amount: amountToPay
+        total_amount: amountToPay,
+        notes: '' // Add notes property, set to empty string or appropriate value
       };
 
       const response = await fetch('http://localhost:8000/api/cashier/checkout', {
@@ -110,6 +111,74 @@ export const usePayment = (vendorId: number) => {
       setIsProcessing(false);
     }
   };
+// Add this to usePayment.ts
+const processTransactionData = async (
+  transactionData: any,
+  cart: CartItem[],
+  customer: Customer,
+  taxAmount: number,
+  taxRate: number,
+  taxEnabled: boolean,
+  discountAmount: number,
+  subtotal: number,
+  vendorId: number,
+  orderNote: string
+) => {
+  if (cart.length === 0) return { success: false, error: 'Cart is empty' };
+
+  setIsProcessing(true);
+  
+  try {
+    const checkoutData: CheckoutData = {
+      vendor_id: vendorId,
+      items: cart.map(item => ({
+        product_id: item.product.id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price
+      })),
+      customer: Object.keys(customer).length > 0 ? customer : null,
+      payment_method: transactionData.payment_method === 'split' ? 'cash' : transactionData.payment_method,
+      tax_amount: taxEnabled ? taxAmount : 0,
+      tax_rate: taxEnabled ? taxRate : 0,
+      tax_enabled: taxEnabled,
+      discount_amount: discountAmount,
+      subtotal: subtotal,
+      total_amount: transactionData.total_amount,
+      notes: orderNote
+    };
+
+    const response = await fetch('http://localhost:8000/api/cashier/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkoutData)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      const transaction = {
+        ...result,
+        amount_given: transactionData.amount_given,
+        change_due: transactionData.change_due,
+        payment_method: transactionData.payment_method
+      };
+      
+      setPaymentTransaction(transaction);
+      setPaymentStep('success');
+      
+      return { success: true, transaction };
+    } else {
+      return { success: false, error: result.detail };
+    }
+  } catch (error) {
+    console.error('Payment error:', error);
+    return { success: false, error: 'Network error occurred' };
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   const completeSale = () => {
     setShowPaymentModal(false);
@@ -135,6 +204,7 @@ export const usePayment = (vendorId: number) => {
     setQuickTender,
     updateAmountGiven,
     processPaymentFlow,
-    completeSale
+    completeSale,
+    processTransactionData
   };
 };

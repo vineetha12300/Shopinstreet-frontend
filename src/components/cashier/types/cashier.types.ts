@@ -85,6 +85,7 @@ export interface CheckoutData {
   discount_amount: number;
   subtotal: number;
   total_amount: number;
+  notes: string;
 }
 
 export interface StockDisplay {
@@ -94,7 +95,7 @@ export interface StockDisplay {
   disabled: boolean;
 }
 
-export type PaymentMethod = 'cash' | 'card' | 'digital';
+export type PaymentMethod = 'cash' | 'card' | 'digital' | 'upi';
 export type PaymentStep = 'payment' | 'success';
 export type RegisterOperation = 'open' | 'close';
 
@@ -130,6 +131,8 @@ export interface CartPanelProps {
   getAvailableStock: (productId: number) => number;
 }
 
+// Update this interface in your cashier.types.ts file:
+
 export interface PaymentModalProps {
   show: boolean;
   step: PaymentStep;
@@ -140,6 +143,16 @@ export interface PaymentModalProps {
   paymentTransaction: PaymentTransaction | null;
   customer: Customer;
   isProcessing: boolean;
+  
+  // ADD THESE 5 NEW LINES:
+  cart?: CartItem[];
+  subtotal?: number;
+  taxAmount?: number;
+  taxRate?: number;
+  discountAmount?: number;
+  orderNote?: string;
+  vendorId: number;
+  
   onClose: () => void;
   onSetAmountToPay: (amount: number) => void;
   onSetAmountGiven: (amount: number) => void;
@@ -148,6 +161,7 @@ export interface PaymentModalProps {
   onProcessPayment: (method: PaymentMethod) => void;
   onCompleteSale: () => void;
   onShowCustomerModal: () => void;
+
 }
 
 export interface RegisterScreenProps {
@@ -183,6 +197,9 @@ export interface MobileCartProps {
   onRemoveItem: (productId: number) => void;
   onStartPayment: () => void;
   getAvailableStock: (productId: number) => number;
+  onClearCart: () => void;
+  onShowCustomerModal: () => void;
+  customer: any;
 }
 
 export interface RegisterHeaderProps {
@@ -225,6 +242,7 @@ export interface CheckoutResponse {
   items_count: number;
   register_session_id: number;
   created_at: string;
+  
 }
 
 export interface RegisterOpenResponse {
