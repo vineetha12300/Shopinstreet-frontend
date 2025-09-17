@@ -1,9 +1,33 @@
 import React, { useState } from 'react';
-import { ShoppingCart, User, CreditCard, Tag, Percent, StickyNote } from 'lucide-react';
-import CartItem from './CartItem';
+import { User, X } from 'lucide-react';
 import { CartPanelProps } from '../cashier/types/cashier.types';
 
-const CartPanel: React.FC<CartPanelProps> = ({
+interface UpdatedCartPanelProps extends CartPanelProps {
+  // Discount and tax state from useCashier
+  appliedDiscount: number;
+  appliedPromo: string;
+  taxSettings: Array<{name: string; rate: number}>;
+  orderNote: string;
+  discount: {type: string; value: number};
+  promoCode: string;
+  
+  // Calculated values
+  calculatedTotal: number;
+  
+  // Handlers from useCashier
+  onApplyDiscount: () => void;
+  onApplyPromoCode: () => void;
+  onSetDiscount: (discount: {type: string; value: number}) => void;
+  onSetPromoCode: (code: string) => void;
+  onSetTaxSettings: (settings: Array<{name: string; rate: number}>) => void;
+  onSetOrderNote: (note: string) => void;
+  onResetCartState: () => void;
+  onResetDiscount: () => void;  
+  onResetPromo: () => void;
+  onResetNote: () => void;   
+}
+
+const CartPanel: React.FC<UpdatedCartPanelProps> = ({
   cart,
   totalItems,
   subtotal,
@@ -13,277 +37,451 @@ const CartPanel: React.FC<CartPanelProps> = ({
   discountAmount,
   finalTotal,
   customer,
+  
+  // New props from useCashier
+  appliedDiscount,
+  appliedPromo,
+  taxSettings,
+  orderNote,
+  discount,
+  promoCode,
+  calculatedTotal,
+  
+  // Handlers
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
   onShowCustomerModal,
   onStartPayment,
-  getAvailableStock
+  getAvailableStock,
+  onApplyDiscount,
+  onApplyPromoCode,
+  onSetDiscount,
+  onSetPromoCode,
+  onSetTaxSettings,
+  onSetOrderNote,
+  onResetCartState,
+  onResetDiscount,  // Make sure this is here
+  onResetPromo,
+  onResetNote   // Make sure this is here
+  
 }) => {
-  // New POS feature states
+  // Only modal visibility state
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
-  const [discount, setDiscount] = useState({ type: 'percentage', value: 0 });
-  const [promoCode, setPromoCode] = useState('');
-  const [orderNote, setOrderNote] = useState('');
+  const [showTaxModal, setShowTaxModal] = useState(false);
+  const [currentTax, setCurrentTax] = useState({ name: '', rate: 0 });
 
-  const handleApplyDiscount = () => {
-    // This would integrate with your backend discount logic
-    setShowDiscountModal(false);
+  const handleClearCart = () => {
+    onClearCart();
+    onResetCartState();
   };
+  // Add this import at the top if not already there
 
-  const handleApplyPromoCode = () => {
-    // This would integrate with your backend promo code validation
-    setShowPromoModal(false);
-  };
+// Add this useEffect after your state declarations
+React.useEffect(() => {
+  if (cart.length === 0) {
+    onResetCartState();
+  }
+}, [cart.length]);
 
   return (
-    <div className="w-96 bg-white border-l-2 border-gray-100 flex flex-col shadow-xl">
-      <div className="flex-shrink-0 p-4 border-b-2 border-gray-100 bg-gradient-to-r from-[#1DA1F2] to-[#0EA5E9] text-white">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Current Order
-          </h2>
-          {cart.length > 0 && (
+    <div className="w-96 h-screen bg-gray-200 flex flex-col">
+      <div className="p-4">
+        {/* Main cart white container */}
+        <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col">
+          {/* Customer section */}
+          <div className="px-4 py-3 border-b border-gray-200">
             <button
-              onClick={onClearCart}
-              className="text-white/80 hover:text-white text-sm font-bold hover:bg-white/10 px-3 py-1 rounded-lg transition-all"
+              onClick={onShowCustomerModal}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
             >
-              Clear All
+              <User className="w-4 h-4" />
+              <span className="text-sm">
+                {customer?.name ? `Customer: ${customer.name}` : 'Add a customer'}
+              </span>
             </button>
-          )}
-        </div>
-        <p className="text-white/80 text-sm mt-1">
-          {totalItems} item{totalItems !== 1 ? 's' : ''}
-        </p>
-      </div>
+          </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Customer Selection */}
-        <div className="p-4 border-b border-gray-100">
-          <button
-            onClick={onShowCustomerModal}
-            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-[#1DA1F2] hover:text-[#1DA1F2] transition-all flex items-center justify-center gap-2 text-sm font-medium"
-          >
-            <User className="h-4 w-4" />
-            {customer.name ? `Customer: ${customer.name}` : 'Add a customer'}
-          </button>
-        </div>
-
-        {/* Cart Items */}
-        <div className="p-4">
-          <div className="space-y-3">
-            {cart.map(item => (
-              <CartItem
-                key={item.product.id}
-                item={item}
-                availableStock={getAvailableStock(item.product.id)}
-                onUpdateQuantity={onUpdateQuantity}
-                onRemoveItem={onRemoveItem}
-              />
-            ))}
-            
-            {cart.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <ShoppingCart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">Your cart is empty</p>
-                <p className="text-sm">Add products to get started</p>
+          {/* Cart items */}
+          <div className="flex-1 overflow-y-auto">
+            {cart.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-gray-500">
+                <p className="text-sm">No items in cart</p>
+              </div>
+            ) : (
+              <div className="px-4">
+                {cart.map((item) => (
+                  <div key={item.product.id} className="flex items-center py-3 border-b border-gray-100 last:border-b-0">
+                    <span className="text-gray-800 mr-3">{item.quantity}</span>
+                    <span className="text-gray-800 flex-1">{item.product.name}</span>
+                    <span className="text-gray-800 mr-2">₹{(item.unit_price * item.quantity).toFixed(2)}</span>
+                    <button 
+                      onClick={() => onRemoveItem(item.product.id)}
+                      className="text-gray-400 hover:text-red-500 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
 
-        {/* POS Action Buttons - New Feature */}
-        {cart.length > 0 && (
-          <div className="px-4 pb-4 border-b border-gray-100">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowDiscountModal(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+          {/* Bottom section */}
+          {cart.length > 0 && (
+            <div className="border-t border-gray-200 px-4 py-4">
+              {/* Action buttons row */}
+              <div className="space-y-2 mb-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => setShowTaxModal(true)}
+                    className={`text-sm py-2 px-3 rounded ${taxSettings.length > 0 ? 'text-blue-600 font-medium bg-blue-50' : 'text-black font-medium hover:bg-gray-50'}`}
+                  >
+                    {taxSettings.length > 0 ? `Tax (${taxSettings.length})` : 'Tax'}
+                  </button>
+                  <button 
+                    onClick={() => setShowDiscountModal(true)}
+                    className="text-blue-500 hover:text-blue-700 text-sm py-2 px-3 rounded hover:bg-blue-50"
+                  >
+                    Discount
+                  </button>
+                  <button 
+                    onClick={() => setShowPromoModal(true)}
+                    className="text-gray-600 hover:text-gray-800 text-sm py-2 px-3 rounded hover:bg-gray-50"
+                  >
+                    Promo Code
+                  </button>
+                  <button 
+                    onClick={() => setShowNoteModal(true)}
+                    className={`text-sm py-2 px-3 rounded ${orderNote ? 'text-purple-600 font-medium bg-purple-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'}`}
+                  >
+                    {orderNote ? 'Note ✓' : 'Note'}
+                  </button>
+                </div>
+                
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleClearCart}
+                    className="text-red-500 hover:text-red-700 text-sm font-medium px-3 py-2 border border-red-200 rounded hover:bg-red-50"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              {/* Subtotal */}
+              <div className="flex justify-between mb-3">
+                <span className="text-gray-700">Subtotal</span>
+                <span className="text-gray-900">₹{subtotal.toFixed(2)}</span>
+              </div>
+
+              {/* Applied discount */}
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between mb-3">
+                  <span className="text-green-600">
+                    Discount{appliedPromo && ` (${appliedPromo})`}
+                  </span>
+                  <span className="text-gray-900">-₹{appliedDiscount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Multiple Taxes */}
+              {taxSettings.map((tax, index) => (
+                <div key={index} className="flex justify-between mb-3">
+                  <span className="text-blue-500">{tax.name} {tax.rate}%</span>
+                  <span className="text-gray-900">₹{(subtotal * tax.rate / 100).toFixed(2)}</span>
+                </div>
+              ))}
+
+              {/* Pay Button */}
+              <button 
+                onClick={onStartPayment}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg text-lg transition-colors"
               >
-                <Percent className="w-4 h-4" />
-                Discount
-              </button>
-              <button
-                onClick={() => setShowPromoModal(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-              >
-                <Tag className="w-4 h-4" />
-                Promo Code
-              </button>
-              <button
-                onClick={() => setShowNoteModal(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-              >
-                <StickyNote className="w-4 h-4" />
-                Note
+                Pay {totalItems} item{totalItems !== 1 ? 's' : ''} ₹{calculatedTotal.toFixed(2)}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {cart.length > 0 && (
-        <div className="flex-shrink-0 border-t-2 border-gray-100 bg-white p-4">
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-medium">Subtotal:</span>
-                  <span className="font-bold">₹{subtotal.toFixed(2)}</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span className="font-medium">Discount:</span>
-                    <span className="font-bold">-₹{discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                {taxEnabled && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 font-medium">Tax ({(taxRate * 100).toFixed(1)}%):</span>
-                    <span className="font-bold">₹{taxAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="border-t-2 border-gray-300 pt-2 mt-2 flex justify-between font-bold text-lg">
-                  <span className="text-gray-800">Total:</span>
-                  <span className="text-[#1DA1F2]">₹{finalTotal.toFixed(2)}</span>
-                </div>
+      {/* Tax Modal */}
+      {showTaxModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Add Custom Tax</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Tax Name</label>
+                <input
+                  type="text"
+                  value={currentTax.name}
+                  onChange={(e) => setCurrentTax({...currentTax, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., GST, VAT, Sales Tax"
+                />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Tax Rate (%)</label>
+                <input
+                  type="number"
+                  value={currentTax.rate}
+                  onChange={(e) => setCurrentTax({...currentTax, rate: parseFloat(e.target.value) || 0})}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="Enter tax rate"
+                />
+              </div>
+
+              {/* Show existing taxes */}
+              {taxSettings.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Current Taxes</label>
+                  <div className="space-y-2 max-h-24 overflow-y-auto">
+                    {taxSettings.map((tax, index) => (
+                      <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                        <span className="text-sm">{tax.name} ({tax.rate}%)</span>
+                        <button
+                          onClick={() => {
+                            const newTaxes = taxSettings.filter((_, i) => i !== index);
+                            onSetTaxSettings(newTaxes);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button
-              onClick={onStartPayment}
-              className="w-full py-4 bg-gradient-to-r from-[#1DA1F2] to-[#0EA5E9] text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-              style={{ minHeight: '44px' }}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Pay ₹{finalTotal.toFixed(2)}
-              </div>
-            </button>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowTaxModal(false)}
+                className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (currentTax.name && currentTax.rate > 0) {
+                    onSetTaxSettings([...taxSettings, currentTax]);
+                    setCurrentTax({ name: '', rate: 0 });
+                  }
+                  setShowTaxModal(false);
+                }}
+                disabled={!currentTax.name || currentTax.rate <= 0}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                Add Tax
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Discount Modal */}
-      {showDiscountModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Apply Discount</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Discount Type</label>
-                <select
-                  value={discount.type}
-                  onChange={(e) => setDiscount({...discount, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed_amount">Fixed Amount</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {discount.type === 'percentage' ? 'Percentage (%)' : 'Amount (₹)'}
-                </label>
-                <input
-                  type="number"
-                  value={discount.value}
-                  onChange={(e) => setDiscount({...discount, value: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  min="0"
-                  max={discount.type === 'percentage' ? "100" : undefined}
-                  placeholder={discount.type === 'percentage' ? 'Enter percentage' : 'Enter amount'}
-                />
-              </div>
-            </div>
+      {/* Discount Modal */}
+{showDiscountModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+      <h3 className="text-lg font-semibold mb-4">Apply Discount</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Discount Type</label>
+          <select
+            value={discount.type}
+            onChange={(e) => onSetDiscount({...discount, type: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="percentage">Percentage</option>
+            <option value="fixed_amount">Fixed Amount</option>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {discount.type === 'percentage' ? 'Percentage (%)' : 'Amount (₹)'}
+          </label>
+          <input
+            type="number"
+            value={discount.value}
+            onChange={(e) => onSetDiscount({...discount, value: parseFloat(e.target.value) || 0})}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+            min="0"
+            max={discount.type === 'percentage' ? "100" : undefined}
+            placeholder={discount.type === 'percentage' ? 'Enter percentage' : 'Enter amount'}
+          />
+        </div>
 
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setShowDiscountModal(false)}
-                className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApplyDiscount}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Apply Discount
-              </button>
+        {/* Show current applied discount */}
+        {appliedDiscount > 0 && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Current Discount</label>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">
+                  {appliedPromo ? `${appliedPromo}` : 'Manual Discount'} (-₹{appliedDiscount.toFixed(2)})
+                </span>
+                <button
+                  onClick={() => {
+                    onResetDiscount(); // Add this function to reset discount
+                  }}
+                  className="text-red-500 hover:text-red-700 text-xs"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={() => setShowDiscountModal(false)}
+          className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            onApplyDiscount();
+            setShowDiscountModal(false);
+          }}
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Apply Discount
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Promo Code Modal */}
-      {showPromoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Apply Promo Code</h3>
-            
-            <input
-              type="text"
-              placeholder="Enter promo code"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+{showPromoModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+      <h3 className="text-lg font-semibold mb-4">Apply Promo Code</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Promo Code</label>
+          <input
+            type="text"
+            placeholder="Enter promo code"
+            value={promoCode}
+            onChange={(e) => onSetPromoCode(e.target.value.toUpperCase())}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        
+        <p className="text-xs text-gray-500 mb-4">Try: SAVE10 or FLAT50</p>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowPromoModal(false)}
-                className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApplyPromoCode}
-                disabled={!promoCode}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
-              >
-                Apply Code
-              </button>
+        {/* Show current applied promo */}
+        {appliedPromo && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Current Promo Code</label>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">{appliedPromo} (-₹{appliedDiscount.toFixed(2)})</span>
+                <button
+  onClick={() => onResetPromo()}
+  className="text-red-500 hover:text-red-700 text-xs"
+>
+  Remove
+</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={() => setShowPromoModal(false)}
+          className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            onApplyPromoCode();
+            setShowPromoModal(false);
+          }}
+          disabled={!promoCode}
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+        >
+          Apply Code
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Note Modal */}
-      {showNoteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Order Note</h3>
-            
-            <textarea
-              placeholder="Add a note to this order..."
-              value={orderNote}
-              onChange={(e) => setOrderNote(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg mb-4 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+{showNoteModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+      <h3 className="text-lg font-semibold mb-4">Order Note</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Add Note</label>
+          <textarea
+            placeholder="Add a note to this order..."
+            value={orderNote}
+            onChange={(e) => onSetOrderNote(e.target.value)}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowNoteModal(false)}
-                className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setShowNoteModal(false)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Save Note
-              </button>
+        {/* Show current applied note */}
+        {orderNote && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Current Note</label>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="flex justify-between items-start">
+                <span className="text-sm flex-1 pr-2">{orderNote}</span>
+                <button
+                  onClick={() => onResetNote()}
+                  className="text-red-500 hover:text-red-700 text-xs flex-shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={() => setShowNoteModal(false)}
+          className="flex-1 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => setShowNoteModal(false)}
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Save Note
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
